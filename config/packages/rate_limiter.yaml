@@ -1,0 +1,10 @@
+framework:
+    cache:
+        app: cache.adapter.filesystem
+    rate_limiter:
+        limiters:
+            login:
+                storage_service: 'cache.app'
+                policy: fixed_window
+                limit: 5
+                interval: '1 minute'

@@ -16,3 +16,18 @@ services:
 
     App\Logging\TenantContextProcessor:
         tags: [ { name: monolog.processor } ]
+
+    App\Logging\AuditDbHandler: ~
+
+    monolog.processor.web:
+        class: Monolog\Processor\WebProcessor
+        tags: [ { name: monolog.processor } ]
+
+    monolog.processor.uid:
+        class: Monolog\Processor\UidProcessor
+        tags: [ { name: monolog.processor } ]
+
+    monolog.processor.introspection:
+        class: Monolog\Processor\IntrospectionProcessor
+        arguments: [ 'debug', [ ], 0 ]
+        tags: [ { name: monolog.processor } ]

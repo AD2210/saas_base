@@ -35,3 +35,9 @@ composer:  ## Run composer inside container: make composer cmd="require vendor/p
 
 require-frankenphp: ## Install FrankenPHP runtime for Symfony
 	docker compose exec app composer require runtime/frankenphp-symfony:^1 --no-interaction
+
+warm: ## warm var and autoload
+	docker compose exec app sh -lc 'mkdir -p var/cache var/log && chmod -R 777 var' && docker compose exec app composer dump-autoload -o -n && docker compose exec app php bin/console cache:clear
+
+ps: ## verifying started container
+	docker compose ps
