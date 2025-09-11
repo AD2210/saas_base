@@ -1,22 +1,31 @@
 monolog:
-  channels: [access, audit, security]
-  handlers:
-    access_rotating:
-      type: rotating_file
-      path: '%kernel.logs_dir%/access.log'
-      max_files: 365
-      channels: [access]
-    audit_db:
-      type: stream
-      path: '%kernel.logs_dir%/audit.jsonl'
-      formatter: monolog.formatter.json
-      channels: [audit]
-    security_rotating:
-      type: rotating_file
-      path: '%kernel.logs_dir%/security.log'
-      max_files: 365
-      channels: [security]
-  processors:
-    - monolog.processor.web
-    - monolog.processor.uid
-    - monolog.processor.introspection
+    use_microseconds: true
+    channels: [access, audit, security]
+
+    handlers:
+        main:
+            type: stream
+            path: '%kernel.logs_dir%/%kernel.environment%.log'
+            level: debug
+
+        access_rotating:
+            type: rotating_file
+            path: '%kernel.logs_dir%/access.log'
+            max_files: 365
+            level: info
+            channels: [access]
+            formatter: monolog.formatter.json
+
+        audit_json:
+            type: stream
+            path: '%kernel.logs_dir%/audit.jsonl'
+            level: info
+            channels: [audit]
+            formatter: monolog.formatter.json
+
+        security_rotating:
+            type: rotating_file
+            path: '%kernel.logs_dir%/security.log'
+            max_files: 365
+            level: notice
+            channels: [security]

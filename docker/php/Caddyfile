@@ -1,0 +1,20 @@
+{
+    debug
+    # admin local (par défaut) – on peut le couper si besoin: admin off
+}
+
+:8080 {
+    encode zstd gzip
+    root * /app/public
+
+    # endpoint de santé statique (sans Symfony)
+    handle_path /healthz {
+        respond "OK" 200
+    }
+
+    # app Symfony servie par FrankenPHP
+    php_server
+
+    # fichiers statiques (assets)
+    file_server
+}

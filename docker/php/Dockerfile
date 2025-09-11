@@ -1,22 +1,28 @@
-FROM dunglas/frankenphp:1.2-php8.2
+# ---- stage composer ----
+FROM composer:2 AS composer_bin
 
-# Useful packages & PHP extensions
-RUN install-php-extensions             intl pdo_pgsql sodium opcache pcntl gd
+# ---- app image ----
+FROM dunglas/frankenphp:1.2-php8.3
+
+# Extensions & outils
+RUN install-php-extensions intl pdo_pgsql sodium opcache pcntl gd zip
+RUN if command -v apt-get >/dev/null 2>&1; then \
+      apt-get update && apt-get install -y --no-install-recommends unzip p7zip-full && rm -rf /var/lib/apt/lists/* ; \
+    elif command -v apk >/dev/null 2>&1; then \
+      apk add --no-cache unzip p7zip ; \
+    fi
+
+# Composer
+COPY --from=composer_bin /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 COPY --link . /app
 
-# Dev runtime
+# Runtime Symfony pour FrankenPHP
 ENV APP_RUNTIME=Runtime\\FrankenPhpSymfony\\Runtime
-# Inline FrankenPHP config (pas de Caddyfile externe nécessaire)
-ENV FRANKENPHP_CONFIG="prod=off\nworker /app/public/index.php"
 
-EXPOSE 8080
-CMD ["frankenphp", "run", "--http", ":8080"]
-
-
-# Composer install (best-effort for bootstrap)
-RUN composer install --no-interaction --prefer-dist --no-scripts || true
+# Caddyfile externe
+COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 8080
 CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
