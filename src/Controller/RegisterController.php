@@ -4,7 +4,7 @@ use App\Infrastructure\Provisioning\TenantProvisioner;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
-final class RegisterController {
+final readonly class RegisterController {
     public function __construct(private TenantProvisioner $prov) {}
     #[Route('/register', name: 'app_register', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse {

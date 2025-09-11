@@ -3,14 +3,14 @@
 namespace App\Logging;
 
 use App\Domain\Tenancy\TenantContext;
-use Symfony\Component\Security\Core\Security;
+use Symfony\Bundle\SecurityBundle\Security;
 use Monolog\LogRecord;
 
-final class TenantContextProcessor
+final readonly class TenantContextProcessor
 {
     public function __construct(
         private TenantContext $ctx,
-        private ?Security $security = null
+        private ?Security     $security = null
     ) {}
 
     /** @param LogRecord|array $record
