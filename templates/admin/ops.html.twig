@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Ops{% endblock %}
+
+{% block body %}
+    <main style="max-width: 1100px; margin: 2rem auto; padding: 0 1rem;">
+        <h1>Monitoring & Logs</h1>
+
+        <section class="content-panel">
+            <h2>Monitoring</h2>
+            <ul>
+                <li>
+                    Netdata:
+                    {% if netdata_url is not empty %}
+                        <a href="{{ netdata_url }}" target="_blank" rel="noopener noreferrer">{{ netdata_url }}</a>
+                    {% else %}
+                        <span>Not configured (set NETDATA_PUBLIC_URL).</span>
+                    {% endif %}
+                </li>
+                <li>
+                    Uptime Kuma:
+                    {% if uptime_kuma_url is not empty %}
+                        <a href="{{ uptime_kuma_url }}" target="_blank" rel="noopener noreferrer">{{ uptime_kuma_url }}</a>
+                    {% else %}
+                        <span>Not configured (set UPTIME_KUMA_PUBLIC_URL).</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </section>
+
+        <section class="content-panel" style="margin-top: 1.5rem;">
+            <h2>Application Log Excerpt</h2>
+            <p>Source: <code>{{ log_file }}</code></p>
+            {% if log_excerpt is empty %}
+                <p>No readable log lines found.</p>
+            {% else %}
+                <pre style="max-height: 28rem; overflow: auto; background: #111; color: #f7f7f7; padding: 1rem; border-radius: 0.5rem;">{{ log_excerpt|join("\n") }}</pre>
+            {% endif %}
+        </section>
+    </main>
+{% endblock %}

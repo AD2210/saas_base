@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="SaaS Base Coding Standard">
+    <description>Project coding standard for PHP files.</description>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <file>src</file>
+    <file>tests</file>
+    <file>config</file>
+    <file>bin</file>
+
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>var/*</exclude-pattern>
+    <exclude-pattern>public/bundles/*</exclude-pattern>
+    <exclude-pattern>migrations/*</exclude-pattern>
+    <exclude-pattern>config/reference.php</exclude-pattern>
+
+    <rule ref="PSR12">
+        <exclude name="PSR12.Operators.OperatorSpacing"/>
+    </rule>
+</ruleset>

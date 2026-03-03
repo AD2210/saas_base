@@ -1,0 +1,77 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}SaaS Multi-Tenant Starter{% endblock %}
+
+{% block body %}
+    <main class="landing-page">
+        <section class="hero">
+            <div class="hero__copy">
+                <p class="hero__eyebrow">Symfony 7.4 · PHP 8.5 · PostgreSQL LTS</p>
+                <h1>Launch your tenant-ready SaaS in days, not months.</h1>
+                <p class="hero__lead">
+                    Base mère + provisioning + onboarding sécurisé. Le starter est prêt pour passer un produit en mode multi-tenant sans repartir de zéro.
+                </p>
+                <ul class="hero__facts">
+                    <li>Database-per-tenant</li>
+                    <li>Onboarding link chiffré (24h)</li>
+                    <li>Monitoring Netdata + Uptime Kuma</li>
+                </ul>
+            </div>
+
+            <div class="hero__form-card">
+                <h2>Request a demo</h2>
+                <p class="hero__form-subtitle">Receive your onboarding link instantly and start your 30-day trial.</p>
+
+                <form data-demo-form novalidate>
+                    <div class="grid two">
+                        <label>
+                            <span>First name</span>
+                            <input type="text" name="first_name" required autocomplete="given-name">
+                        </label>
+                        <label>
+                            <span>Last name</span>
+                            <input type="text" name="last_name" required autocomplete="family-name">
+                        </label>
+                    </div>
+
+                    <div class="grid two">
+                        <label>
+                            <span>Email</span>
+                            <input type="email" name="email" required autocomplete="email">
+                        </label>
+                        <label>
+                            <span>Phone</span>
+                            <input type="tel" name="phone" required autocomplete="tel">
+                        </label>
+                    </div>
+
+                    <label>
+                        <span>Company</span>
+                        <input type="text" name="company" required autocomplete="organization">
+                    </label>
+
+                    <label>
+                        <span>Address</span>
+                        <input type="text" name="address" required autocomplete="street-address">
+                    </label>
+
+                    <div class="grid two">
+                        <label>
+                            <span>Birth date</span>
+                            <input type="date" name="birth_date" required>
+                        </label>
+                        <label>
+                            <span>Slug (optional)</span>
+                            <input type="text" name="slug" placeholder="my-tenant">
+                        </label>
+                    </div>
+
+                    <button type="submit" class="cta" data-submit-button>Start my demo</button>
+                </form>
+
+                <div class="form-status" data-form-status aria-live="polite"></div>
+            </div>
+        </section>
+    </main>
+{% endblock %}
+

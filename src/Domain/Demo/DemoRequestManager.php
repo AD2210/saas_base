@@ -1,0 +1,88 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Demo;
+
+use App\Entity\Contact;
+use App\Entity\DemoRequest;
+use App\Infrastructure\Provisioning\OnboardingTokenManager;
+use App\Infrastructure\Provisioning\TenantProvisioner;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
+
+final readonly class DemoRequestManager
+{
+    public function __construct(
+        private EntityManagerInterface $em,
+        private TenantProvisioner $tenantProvisioner,
+        private OnboardingTokenManager $tokenManager,
+        private MailerInterface $mailer,
+        private LoggerInterface $logger,
+    ) {
+    }
+
+    public function requestDemo(
+        string $email,
+        string $firstName,
+        string $lastName,
+        string $address,
+        \DateTimeImmutable $birthDate,
+        string $phone,
+        string $company,
+        string $baseUrl,
+        ?string $slug = null,
+    ): DemoRequest {
+        $contact = $this->em->getRepository(Contact::class)->findOneBy(['email' => mb_strtolower(trim($email))]);
+        if (!$contact instanceof Contact) {
+            $contact = new Contact($email, $firstName, $lastName, $address, $birthDate, $phone);
+            $this->em->persist($contact);
+        }
+
+        $tenant = $this->tenantProvisioner->createTenantAccount(
+            email: $email,
+            company: $company,
+            firstName: $firstName,
+            lastName: $lastName,
+            slug: $slug,
+        );
+        $this->tenantProvisioner->provisionDatabase($tenant);
+
+        $demoExpiresAt = new \DateTimeImmutable('+30 days');
+        $demoRequest = new DemoRequest($contact, $tenant, $demoExpiresAt);
+        $token = $this->tokenManager->generateToken($tenant, 86400);
+        $demoRequest->setOnboardingTokenHash(hash('sha256', $token));
+        $this->em->persist($demoRequest);
+        $this->em->flush();
+
+        $onboardingUrl = rtrim($baseUrl, '/').'/onboarding/set-password?token='.urlencode($token);
+        $this->sendOnboardingMail($email, $firstName, $onboardingUrl);
+
+        $this->logger->info('demo.request.created', [
+            'demo_request_uuid' => $demoRequest->getIdString(),
+            'tenant_uuid' => $tenant->getIdString(),
+            'tenant_slug' => $tenant->getSlug(),
+            'contact_email' => $contact->getEmail(),
+            'demo_expires_at' => $demoRequest->getExpiresAt()->format(\DateTimeInterface::ATOM),
+        ]);
+
+        return $demoRequest;
+    }
+
+    private function sendOnboardingMail(string $email, string $firstName, string $onboardingUrl): void
+    {
+        $mail = (new Email())
+            ->from('no-reply@dsn-dev.com')
+            ->to($email)
+            ->subject('Activation de votre espace de demo')
+            ->text(sprintf(
+                "Bonjour %s,\n\nVotre demande de demo est enregistree.\n\nUtilisez ce lien pour creer votre mot de passe (valide 24h):\n%s\n",
+                $firstName,
+                $onboardingUrl
+            ));
+
+        $this->mailer->send($mail);
+    }
+}

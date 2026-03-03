@@ -15,6 +15,9 @@ down:      ## Stop & remove
 logs:      ## Tail app logs
 	docker compose logs -f app
 
+worker-logs: ## Tail messenger worker logs
+	docker compose logs -f worker
+
 sh:        ## Shell into app
 	docker compose exec app bash || docker compose exec app sh
 
@@ -41,3 +44,15 @@ warm: ## warm var and autoload
 
 ps: ## verifying started container
 	docker compose ps
+
+monitoring-up: ## Start monitoring stack (Netdata + Uptime Kuma)
+	docker compose --profile monitoring up -d netdata uptime-kuma
+
+monitoring-logs: ## Tail monitoring logs
+	docker compose --profile monitoring logs -f netdata uptime-kuma
+
+monitoring-down: ## Stop monitoring stack
+	docker compose --profile monitoring stop netdata uptime-kuma
+
+ops-lint: ## Bash syntax check for ops scripts
+	find ops -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n

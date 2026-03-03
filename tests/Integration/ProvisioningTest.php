@@ -1,13 +1,28 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Tests\Integration;
 
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-final class ProvisioningTest extends KernelTestCase
+final class ProvisioningTest extends WebTestCase
 {
-    public function test_placeholder(): void
+    public function testHealthEndpointReturnsOk(): void
     {
-        self::bootKernel();
-        $this->assertTrue(true);
+        $client = static::createClient();
+        $client->request('GET', '/healthz');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('OK', $client->getResponse()->getContent());
+    }
+
+    public function testReadyEndpointReturnsReady(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/ready');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('READY', $client->getResponse()->getContent());
     }
 }

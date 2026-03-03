@@ -1,0 +1,14 @@
+when@dev:
+    debug_controllers:
+        resource: ../../src/Debug/Controller/
+        type: attribute
+
+when@test:
+    debug_controllers:
+        resource: ../../src/Debug/Controller/
+        type: attribute
+
+when@beta:
+    debug_controllers:
+        resource: ../../src/Debug/Controller/
+        type: attribute

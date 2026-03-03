@@ -14,6 +14,20 @@ services:
     volumes:
       - ./:/app:cached
       - symfony_var:/app/var
+  worker:
+    build: ./docker/php
+    container_name: saas-core-worker
+    env_file: .env
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/main_db?serverVersion=16&charset=utf8"
+    depends_on:
+      - db
+    volumes:
+      - ./:/app:cached
+      - symfony_var:/app/var
+    command: [ "php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M" ]
+    restart: unless-stopped
   db:
     image: postgres:16-alpine
     container_name: saas-core-db
@@ -32,6 +46,32 @@ services:
     depends_on: [db]
     ports:
       - "8089:8080"
+  netdata:
+    image: netdata/netdata:stable
+    container_name: saas-core-netdata
+    profiles: ["monitoring"]
+    ports:
+      - "${NETDATA_PORT:-19999}:19999"
+    volumes:
+      - netdata_config:/etc/netdata
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor=unconfined
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: saas-core-uptime-kuma
+    profiles: ["monitoring"]
+    ports:
+      - "${UPTIME_KUMA_PORT:-3001}:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
 volumes:
   pgdata:
   symfony_var:
+  netdata_config:
+  netdata_lib:
+  netdata_cache:
+  uptime_kuma_data:

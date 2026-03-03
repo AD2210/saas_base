@@ -1,53 +1,73 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Logging;
+
 use App\Entity\AuditEvent;
 use App\Entity\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
+use Symfony\Component\Uid\Uuid;
 
 final class AuditDbHandler extends AbstractProcessingHandler
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
         int|string|Level $level = Level::Info,
-        bool $bubble = true
-    ) { parent::__construct($level, $bubble); }
+        bool $bubble = true,
+    ) {
+        parent::__construct($level, $bubble);
+    }
 
     protected function write(LogRecord $record): void
     {
         $tenantSlug = $record->extra['tenant_slug'] ?? null;
-        if (!$tenantSlug) return;
-        $tenant = $this->em->getRepository(Tenant::class)->findOneBy(['slug'=>$tenantSlug]);
-        if (!$tenant) return;
+        if (!is_string($tenantSlug) || '' === $tenantSlug) {
+            return;
+        }
 
-        $action   = (string)($record->context['action'] ?? $record->message ?? 'event');
-        $resource = (string)($record->context['resource'] ?? 'n/a');
-        $status   = (string)($record->context['status'] ?? 'ok');
+        $tenant = $this->em->getRepository(Tenant::class)->findOneBy(['slug' => $tenantSlug]);
+        if (!$tenant instanceof Tenant) {
+            return;
+        }
 
-        $evt = new AuditEvent($tenant, $action, $resource);
+        $action = (string) ($record->context['action'] ?? $record->message ?? 'event');
+        $resource = (string) ($record->context['resource'] ?? 'n/a');
+        $status = (string) ($record->context['status'] ?? 'ok');
 
-        $before = $record->context['before'] ?? null;
-        $after  = $record->context['after']  ?? null;
+        $event = new AuditEvent($tenant, $action, $resource);
+        $event->setStatus($status);
+        $event->setBeforeData($this->normalizeContextArray($record->context['before'] ?? null));
+        $event->setAfterData($this->normalizeContextArray($record->context['after'] ?? null));
+        $event->setIpAddress(isset($record->extra['ip']) ? (string) $record->extra['ip'] : null);
+        $event->setUserAgent(isset($record->extra['user_agent']) ? (string) $record->extra['user_agent'] : null);
+        $event->setCorrelationId(isset($record->extra['uid']) ? (string) $record->extra['uid'] : null);
 
-        $evtBefore = is_array($before) ? $before : ($before === null ? null : ['value'=>$before]);
-        $evtAfter  = is_array($after)  ? $after  : ($after  === null ? null  : ['value'=>$after]);
-
-        $ip     = $record->extra['ip'] ?? null;
-        $ua     = $record->extra['user_agent'] ?? ($record->extra['ua'] ?? null);
-        $corrId = $record->extra['uid'] ?? ($record->extra['request_id'] ?? null);
         $userId = $record->extra['user_id'] ?? ($record->context['user_id'] ?? null);
+        if (is_string($userId) && Uuid::isValid($userId)) {
+            $event->setUserId(Uuid::fromString($userId));
+        }
 
-        $rp = new \ReflectionProperty(AuditEvent::class, 'before'); $rp->setAccessible(true); $rp->setValue($evt, $evtBefore);
-        $rp = new \ReflectionProperty(AuditEvent::class, 'after');  $rp->setAccessible(true); $rp->setValue($evt, $evtAfter);
-        $rp = new \ReflectionProperty(AuditEvent::class, 'status'); $rp->setAccessible(true); $rp->setValue($evt, $status);
-        if ($ip !== null) { $rp = new \ReflectionProperty(AuditEvent::class, 'ip'); $rp->setAccessible(true); $rp->setValue($evt, (string)$ip); }
-        if ($ua !== null) { $rp = new \ReflectionProperty(AuditEvent::class, 'ua'); $rp->setAccessible(true); $rp->setValue($evt, (string)$ua); }
-        if ($corrId !== null) { $rp = new \ReflectionProperty(AuditEvent::class, 'corrId'); $rp->setAccessible(true); $rp->setValue($evt, (string)$corrId); }
-        if ($userId !== null) { $rp = new \ReflectionProperty(AuditEvent::class, 'userId'); $rp->setAccessible(true); $rp->setValue($evt, (string)$userId); }
-
-        $this->em->persist($evt);
+        $this->em->persist($event);
         $this->em->flush();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function normalizeContextArray(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (null === $value) {
+            return null;
+        }
+
+        return ['value' => $value];
     }
 }

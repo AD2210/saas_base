@@ -1,10 +1,16 @@
 security:
     # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
+        Symfony\Component\Security\Core\User\InMemoryUser: plaintext
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        users_in_memory: { memory: null }
+        users_in_memory:
+            memory:
+                users:
+                    super_admin:
+                        password: '%env(APP_ADMIN_PASSWORD)%'
+                        roles: ['ROLE_SUPER_ADMIN']
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
@@ -12,6 +18,7 @@ security:
         main:
             lazy: true
             provider: users_in_memory
+            http_basic: ~
 
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall
@@ -22,7 +29,8 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
+        - { path: ^/debug, roles: ROLE_SUPER_ADMIN }
+        - { path: ^/admin, roles: ROLE_SUPER_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }
 
 when@test:

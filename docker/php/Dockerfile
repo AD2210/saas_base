@@ -2,7 +2,7 @@
 FROM composer:2 AS composer_bin
 
 # ---- app image ----
-FROM dunglas/frankenphp:1.2-php8.3
+FROM dunglas/frankenphp:1-php8.5
 
 # Extensions & outils
 RUN install-php-extensions intl pdo_pgsql sodium opcache pcntl gd zip

@@ -27,3 +27,7 @@
 ###> phpstan/phpstan ###
 phpstan.neon
 ###< phpstan/phpstan ###
+
+# Ops runtime configuration (contains server secrets/hosts)
+ops/config/server.env
+ops/config/backup.env
