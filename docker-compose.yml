@@ -1,12 +1,10 @@
-name: saas-core
 services:
   app:
     build: ./docker/php
-    container_name: saas-core-app
     env_file: .env
     environment:
       APP_ENV: dev
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/main_db?serverVersion=16&charset=utf8"
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8"
     ports:
       - "${APP_HTTP_PORT:-8088}:8080"
     depends_on:
@@ -16,11 +14,10 @@ services:
       - symfony_var:/app/var
   worker:
     build: ./docker/php
-    container_name: saas-core-worker
     env_file: .env
     environment:
       APP_ENV: dev
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/main_db?serverVersion=16&charset=utf8"
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8"
     depends_on:
       - db
     volumes:
@@ -28,13 +25,14 @@ services:
       - symfony_var:/app/var
     command: [ "php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M" ]
     restart: unless-stopped
+    healthcheck:
+      disable: true
   db:
     image: postgres:16-alpine
-    container_name: saas-core-db
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: main_db
+      POSTGRES_DB: "${MAIN_DB_NAME:-saas_base_main}"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d
@@ -42,13 +40,11 @@ services:
       - "${POSTGRES_PORT:-5442}:5432"
   adminer:
     image: adminer:4
-    container_name: saas-core-adminer
     depends_on: [db]
     ports:
       - "8089:8080"
   netdata:
     image: netdata/netdata:stable
-    container_name: saas-core-netdata
     profiles: ["monitoring"]
     ports:
       - "${NETDATA_PORT:-19999}:19999"
@@ -62,7 +58,6 @@ services:
       - apparmor=unconfined
   uptime-kuma:
     image: louislam/uptime-kuma:1
-    container_name: saas-core-uptime-kuma
     profiles: ["monitoring"]
     ports:
       - "${UPTIME_KUMA_PORT:-3001}:3001"

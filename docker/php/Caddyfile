@@ -1,7 +1,6 @@
 {
     frankenphp
     order php_server before file_server
-    debug
 }
 
 :8080 {

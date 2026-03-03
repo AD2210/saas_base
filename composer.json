@@ -86,8 +86,8 @@
         },
         "qa:cs-fixer": "php-cs-fixer fix --dry-run --diff --verbose",
         "qa:phpcs": "phpcs -n --standard=phpcs.xml.dist",
-        "qa:phpstan": "phpstan analyse -c phpstan.dist.neon --no-progress",
-        "qa:phpunit": "phpunit --testdox",
+        "qa:phpstan": "phpstan analyse -c phpstan.dist.neon --no-progress --memory-limit=512M",
+        "qa:phpunit": "APP_ENV=test APP_DEBUG=0 phpunit --testdox",
         "qa": [
             "@qa:cs-fixer",
             "@qa:phpcs",

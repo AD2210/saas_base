@@ -25,14 +25,14 @@ jobs:
       APP_SECRET: test-secret
       APP_SECRETBOX_KEY: d13e60724269fb0aeaccf241a81b14387480f2e8b42f3669f10ac3bc2581396a
       APP_ADMIN_PASSWORD: test-admin-password
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/main_db_test?serverVersion=16&charset=utf8
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/saas_base_main_test?serverVersion=16&charset=utf8
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: main_db_test
+          POSTGRES_DB: saas_base_main_test
         ports:
           - 5432:5432
         options: >-

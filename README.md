@@ -10,10 +10,11 @@ Use it as a base for multi-tenant projects with DB-per-tenant.
    composer require symfony/orm-pack symfony/monolog-bundle symfony/notifier symfony/rate-limiter doctrine/doctrine-migrations-bundle
    composer require --dev phpunit/phpunit doctrine/doctrine-fixtures-bundle phpstan/phpstan phpstan/phpstan-symfony friendsofphp/php-cs-fixer symfony/browser-kit symfony/css-selector
    ```
-2) Drop these files into the repo root (`saas/`), then set local ports to avoid WSL conflicts:
+2) Drop these files into the repo root (`saas/`), then set local ports and DB name:
    ```bash
-   echo -e "\nAPP_HTTP_PORT=8088\nPOSTGRES_PORT=5442" >> .env.local
+   echo -e "\nAPP_HTTP_PORT=8088\nPOSTGRES_PORT=5442\nMAIN_DB_NAME=saas_base_main" >> .env.local
    ```
+   Use a unique `MAIN_DB_NAME` per project to avoid migration collisions.
 3) Start and migrate the main DB:
    ```bash
    make up
@@ -23,7 +24,7 @@ Use it as a base for multi-tenant projects with DB-per-tenant.
    `make up` also starts a messenger worker (`worker`) so async email is consumed in dev.
 4) Run tests:
    ```bash
-   composer test
+   composer qa:phpunit
    ```
 
 ## Admin back-office

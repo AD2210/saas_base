@@ -15,8 +15,10 @@ else
     exit 1
 fi
 
-DB_CONTAINER="${DB_CONTAINER:-saas-core-db}"
-DB_MAIN_NAME="${DB_MAIN_NAME:-main_db}"
+APP_ROOT="${APP_ROOT:-/srv/saas/current}"
+DB_SERVICE="${DB_SERVICE:-db}"
+DB_CONTAINER="${DB_CONTAINER:-}"
+DB_MAIN_NAME="${DB_MAIN_NAME:-saas_base_main}"
 TENANT_DB_PATTERN="${TENANT_DB_PATTERN:-db_%}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/backups/saas}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-10}"
@@ -31,6 +33,18 @@ cleanup() {
     rm -rf "${WORK_DIR}"
 }
 trap cleanup EXIT
+
+db_exec() {
+    if [[ -n "${DB_CONTAINER}" ]]; then
+        docker exec -u postgres "${DB_CONTAINER}" "$@"
+        return 0
+    fi
+
+    (
+        cd "${APP_ROOT}"
+        docker compose exec -T -u postgres "${DB_SERVICE}" "$@"
+    )
+}
 
 assert_prerequisites() {
     require_command docker
@@ -47,14 +61,29 @@ assert_prerequisites() {
         exit 1
     fi
 
-    if ! docker ps --format '{{.Names}}' | grep -qx "${DB_CONTAINER}"; then
-        log_error "Database container is not running: ${DB_CONTAINER}"
-        exit 1
+    if [[ -n "${DB_CONTAINER}" ]]; then
+        if ! docker ps --format '{{.Names}}' | grep -qx "${DB_CONTAINER}"; then
+            log_error "Database container is not running: ${DB_CONTAINER}"
+            exit 1
+        fi
+    else
+        if [[ ! -d "${APP_ROOT}" ]]; then
+            log_error "APP_ROOT does not exist: ${APP_ROOT}"
+            exit 1
+        fi
+
+        if ! (
+            cd "${APP_ROOT}" &&
+            docker compose ps --services --status running | grep -qx "${DB_SERVICE}"
+        ); then
+            log_error "Database service is not running: ${DB_SERVICE} (APP_ROOT=${APP_ROOT})"
+            exit 1
+        fi
     fi
 }
 
 list_tenant_databases() {
-    docker exec -u postgres "${DB_CONTAINER}" psql -d postgres -Atc \
+    db_exec psql -d postgres -Atc \
         "SELECT datname FROM pg_database WHERE datistemplate = false AND datname LIKE '${TENANT_DB_PATTERN}' AND datname <> '${DB_MAIN_NAME}' ORDER BY datname;"
 }
 
@@ -63,17 +92,24 @@ dump_database() {
     local output_file="$2"
 
     log_info "Dumping database: ${db_name}"
-    docker exec -u postgres "${DB_CONTAINER}" pg_dump -d "${db_name}" -Fc > "${output_file}"
+    db_exec pg_dump -d "${db_name}" -Fc > "${output_file}"
 }
 
 create_manifest() {
     local manifest_file="${WORK_DIR}/manifest.txt"
+    local source_target
+
+    if [[ -n "${DB_CONTAINER}" ]]; then
+        source_target="container:${DB_CONTAINER}"
+    else
+        source_target="compose:${DB_SERVICE}@${APP_ROOT}"
+    fi
 
     {
         echo "timestamp=${BACKUP_TIMESTAMP}"
         echo "main_db=${DB_MAIN_NAME}"
         echo "tenant_db_pattern=${TENANT_DB_PATTERN}"
-        echo "source_container=${DB_CONTAINER}"
+        echo "source=${source_target}"
         echo "files="
         find "${WORK_DIR}" -maxdepth 1 -type f -name '*.dump' -printf '%f\n' | sort
     } > "${manifest_file}"
