@@ -1,1 +1,3 @@
-<?php echo 'OK-PHP';
+<?php
+
+echo 'OK-PHP';
