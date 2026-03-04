@@ -40,4 +40,31 @@ final class OnboardingTokenManagerTest extends TestCase
 
         self::assertTrue($manager->isExpired($payload));
     }
+
+    public function testParseTokenFailsWhenRequiredKeyIsMissing(): void
+    {
+        $clock = new MockClock('2026-03-02 10:00:00');
+        $secretBox = new SecretBox(self::KEY);
+        $manager = new OnboardingTokenManager($secretBox, $clock);
+        $token = $secretBox->encrypt((string) json_encode([
+            'tenant_uuid' => 'tenant',
+            'user_uuid' => 'user',
+            'email' => 'admin@example.com',
+        ], JSON_THROW_ON_ERROR));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Missing key "exp"');
+        $manager->parseToken($token);
+    }
+
+    public function testParseTokenFailsWhenPayloadIsNotJson(): void
+    {
+        $clock = new MockClock('2026-03-02 10:00:00');
+        $secretBox = new SecretBox(self::KEY);
+        $manager = new OnboardingTokenManager($secretBox, $clock);
+        $token = $secretBox->encrypt('not-json');
+
+        $this->expectException(\JsonException::class);
+        $manager->parseToken($token);
+    }
 }

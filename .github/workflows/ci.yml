@@ -92,7 +92,18 @@ jobs:
               fwrite(STDERR, "invalid coverage xml\n");
               exit(1);
           }
-          $rate = (float) $xml->project->metrics["line-rate"] * 100;
+          $metrics = $xml->project->metrics;
+          if (!isset($metrics["statements"], $metrics["coveredstatements"])) {
+              fwrite(STDERR, "missing coverage metrics in clover xml\n");
+              exit(1);
+          }
+          $statements = (int) $metrics["statements"];
+          $covered = (int) $metrics["coveredstatements"];
+          if ($statements <= 0) {
+              fwrite(STDERR, "invalid statements count in clover xml\n");
+              exit(1);
+          }
+          $rate = ($covered / $statements) * 100;
           printf("Line coverage: %.2f%%\n", $rate);
           if ($rate < 80) {
               printf("::warning::Coverage below target (80%%): %.2f%%\n", $rate);

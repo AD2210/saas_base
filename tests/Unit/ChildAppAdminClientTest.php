@@ -8,6 +8,7 @@ use App\Entity\Tenant;
 use App\Infrastructure\Provisioning\ChildAppAdminClient;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
@@ -51,6 +52,28 @@ final class ChildAppAdminClientTest extends TestCase
     {
         $httpClient = new MockHttpClient();
         $client = new ChildAppAdminClient($httpClient, new NullLogger(), '', 'token', 'prod');
+
+        $this->expectException(ServiceUnavailableHttpException::class);
+        $client->syncTenantAdmin($this->createTenant(), 'StrongPassw0rd!');
+    }
+
+    public function testSyncTenantAdminFailsWhenEndpointReturnsNon2xx(): void
+    {
+        $httpClient = new MockHttpClient([
+            new MockResponse('{}', ['http_code' => 503]),
+        ]);
+        $client = new ChildAppAdminClient($httpClient, new NullLogger(), 'https://child.local', 'token', 'dev');
+
+        $this->expectException(ServiceUnavailableHttpException::class);
+        $client->syncTenantAdmin($this->createTenant(), 'StrongPassw0rd!');
+    }
+
+    public function testSyncTenantAdminFailsWhenTransportLayerIsUnreachable(): void
+    {
+        $httpClient = new MockHttpClient(static function (): never {
+            throw new TransportException('network unreachable');
+        });
+        $client = new ChildAppAdminClient($httpClient, new NullLogger(), 'https://child.local', 'token', 'dev');
 
         $this->expectException(ServiceUnavailableHttpException::class);
         $client->syncTenantAdmin($this->createTenant(), 'StrongPassw0rd!');

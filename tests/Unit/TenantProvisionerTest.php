@@ -14,6 +14,59 @@ use Psr\Log\LoggerInterface;
 
 final class TenantProvisionerTest extends TestCase
 {
+    public function testCreateTenantAccountPersistsTenantWithNormalizedSlugAndEmail(): void
+    {
+        $tenantRepo = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $tenantRepo->expects($this->once())->method('findOneBy')->with(['slug' => 'acme-company'])->willReturn(null);
+
+        $db = $this->createMock(DbOrchestrator::class);
+        $db->expects($this->never())->method('createDatabase');
+        $db->expects($this->never())->method('rollbackDatabase');
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects($this->once())->method('getRepository')->with(Tenant::class)->willReturn($tenantRepo);
+        $em->expects($this->once())->method('persist')->with($this->isInstanceOf(Tenant::class));
+        $em->expects($this->once())->method('flush');
+
+        $provisioner = $this->buildProvisioner($em, $db);
+        $tenant = $provisioner->createTenantAccount(' OWNER@EXAMPLE.COM ', ' Acme Company ', ' Ada ', ' Lovelace ');
+
+        self::assertSame('acme-company', $tenant->getSlug());
+        self::assertSame('owner@example.com', $tenant->getAdminEmail());
+        self::assertSame('Ada', $tenant->getAdminFirstName());
+        self::assertSame('Lovelace', $tenant->getAdminLastName());
+        self::assertSame(Tenant::STATUS_REQUESTED, $tenant->getStatus());
+    }
+
+    public function testCreateTenantAccountAppendsSuffixWhenSlugAlreadyExists(): void
+    {
+        $existingTenant = new Tenant('acme-company', 'Acme', 'existing@example.com', 'Existing', 'Admin');
+        $tenantRepo = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $tenantRepo->expects($this->exactly(2))
+            ->method('findOneBy')
+            ->willReturnCallback(static function (array $criteria) use ($existingTenant): ?Tenant {
+                if (($criteria['slug'] ?? null) === 'acme-company') {
+                    return $existingTenant;
+                }
+
+                return null;
+            });
+
+        $db = $this->createMock(DbOrchestrator::class);
+        $db->expects($this->never())->method('createDatabase');
+        $db->expects($this->never())->method('rollbackDatabase');
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects($this->exactly(2))->method('getRepository')->with(Tenant::class)->willReturn($tenantRepo);
+        $em->expects($this->once())->method('persist')->with($this->isInstanceOf(Tenant::class));
+        $em->expects($this->once())->method('flush');
+
+        $provisioner = $this->buildProvisioner($em, $db);
+        $tenant = $provisioner->createTenantAccount('owner@example.com', 'Acme Company');
+
+        self::assertSame('acme-company-2', $tenant->getSlug());
+    }
+
     public function testProvisionDatabaseSucceedsOnFirstAttempt(): void
     {
         $db = $this->createMock(DbOrchestrator::class);
