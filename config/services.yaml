@@ -4,6 +4,7 @@ services:
         autoconfigure: true
         bind:
             $hexKey: '%env(APP_SECRETBOX_KEY)%'
+            $childAppLoginUrl: '%env(string:MAIN_CHILD_APP_LOGIN_URL)%'
 
     App\:
         resource: '../src/'

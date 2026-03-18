@@ -10,6 +10,7 @@ use App\Infrastructure\Provisioning\ChildAppAdminClient;
 use App\Infrastructure\Provisioning\OnboardingTokenManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +24,7 @@ final class OnboardingController extends AbstractController
         private readonly ChildAppAdminClient $childAppAdminClient,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly string $childAppLoginUrl,
     ) {
     }
 
@@ -38,7 +40,15 @@ final class OnboardingController extends AbstractController
 
         if ('POST' === $request->getMethod() && 'valid' === $context['state']) {
             $context = $this->handlePasswordSubmission($request, $context);
+            if ('accepted' === $context['state']) {
+                $redirectResponse = $this->redirectToChildAppLogin($context);
+                if ($redirectResponse instanceof RedirectResponse) {
+                    return $redirectResponse;
+                }
+            }
         }
+
+        $context['child_app_login_url'] = $this->buildChildAppLoginUrl($context);
 
         return $this->render('onboarding/set_password.html.twig', $context);
     }
@@ -50,7 +60,8 @@ final class OnboardingController extends AbstractController
      *     message: string,
      *     demo_request: DemoRequest|null,
      *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
-     *     password_errors: list<string>
+     *     password_errors: list<string>,
+     *     child_app_login_url?: string|null
      * } $context
      *
      * @return array{
@@ -59,7 +70,8 @@ final class OnboardingController extends AbstractController
      *     message: string,
      *     demo_request: DemoRequest|null,
      *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
-     *     password_errors: list<string>
+     *     password_errors: list<string>,
+     *     child_app_login_url?: string|null
      * }
      */
     private function handlePasswordSubmission(Request $request, array $context): array
@@ -117,6 +129,55 @@ final class OnboardingController extends AbstractController
         $context['demo_request'] = $demoRequest;
 
         return $context;
+    }
+
+    /**
+     * @param array{
+     *     state: string,
+     *     token: string,
+     *     message: string,
+     *     demo_request: DemoRequest|null,
+     *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
+     *     password_errors: list<string>,
+     *     child_app_login_url?: string|null
+     * } $context
+     */
+    private function redirectToChildAppLogin(array $context): ?RedirectResponse
+    {
+        $loginUrl = $this->buildChildAppLoginUrl($context);
+        if (null === $loginUrl) {
+            return null;
+        }
+
+        return new RedirectResponse($loginUrl, Response::HTTP_SEE_OTHER);
+    }
+
+    /**
+     * @param array{
+     *     state: string,
+     *     token: string,
+     *     message: string,
+     *     demo_request: DemoRequest|null,
+     *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
+     *     password_errors?: list<string>,
+     *     child_app_login_url?: string|null
+     * } $context
+     */
+    private function buildChildAppLoginUrl(array $context): ?string
+    {
+        $baseLoginUrl = trim($this->childAppLoginUrl);
+        if ('' === $baseLoginUrl) {
+            return null;
+        }
+
+        $email = $context['payload']['email'] ?? null;
+        if (!is_string($email) || '' === $email) {
+            return $baseLoginUrl;
+        }
+
+        $separator = str_contains($baseLoginUrl, '?') ? '&' : '?';
+
+        return $baseLoginUrl.$separator.'email='.rawurlencode($email);
     }
 
     /**

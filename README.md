@@ -67,8 +67,18 @@ php bin/console cache:warmup --env=dev
 4) On password submit, mother app can sync tenant admin into child app contract `tenant-admin-provisioning:v1`.
 5) Child app sync config (optional in local dev):
    - `MAIN_CHILD_APP_API_URL=https://child-app.example`
+   - `MAIN_CHILD_APP_LOGIN_URL=https://child-app.example/login`
    - `MAIN_CHILD_APP_API_TOKEN=...`
 6) Contract details: `docs/CHILD_APP_CONTRACT_V1.md`
+7) Integration runbook (commands + validations): `docs/runbooks/CHILD_APP_INTEGRATION_RUNBOOK_V1.md`
+
+Local Docker note:
+- for the local integration path in this repository, `docker compose` can run a `child-app` service from `../client_secret_vault`
+- in that mode use `MAIN_CHILD_APP_API_URL=http://child-app:8000`
+- expose the child app locally with `CHILD_APP_HTTP_PORT=8090`
+- in that mode use `MAIN_CHILD_APP_LOGIN_URL=http://127.0.0.1:8090/login`
+- access the mother app through `http://127.0.0.1:8088`
+- do not use `symfony serve` for this stack: it bypasses the Docker DB settings and can fail against `127.0.0.1:5432`
 
 ## Debug routes policy
 1) Debug endpoints use `/debug/*` prefix.

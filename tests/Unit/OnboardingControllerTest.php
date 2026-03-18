@@ -20,6 +20,7 @@ use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -158,11 +159,39 @@ final class OnboardingControllerTest extends TestCase
             'password_confirm' => 'StrongPassword123!',
         ]));
 
-        $payload = $this->decodeResponse($response);
-        self::assertSame('accepted', $payload['state']);
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('https://vault.example/login?email=admin%40example.com', $response->headers->get('Location'));
         self::assertSame(DemoRequest::STATUS_ACCEPTED, $demoRequest->getStatus());
         self::assertNull($demoRequest->getOnboardingTokenHash());
         self::assertNotNull($demoRequest->getAcceptedAt());
+    }
+
+    public function testPostWithValidPasswordRendersAcceptedStateWhenChildLoginUrlIsMissing(): void
+    {
+        $tenant = $this->createTenant();
+        $contact = $this->createContact();
+        $demoRequest = new DemoRequest($contact, $tenant, new \DateTimeImmutable('+30 days'));
+        $clock = new MockClock('2026-03-03 12:00:00');
+
+        [$controller, $tokenManager] = $this->buildController(
+            $this->entityManagerReturningDemoRequest($demoRequest, 1),
+            $this->childClientSuccess(),
+            $clock,
+            ''
+        );
+        $token = $tokenManager->generateToken($tenant, 3600);
+        $demoRequest->setOnboardingTokenHash(hash('sha256', $token));
+
+        $response = $controller->setPassword(Request::create('/onboarding/set-password', 'POST', [
+            'token' => $token,
+            'password' => 'StrongPassword123!',
+            'password_confirm' => 'StrongPassword123!',
+        ]));
+
+        $payload = $this->decodeResponse($response);
+        self::assertSame('accepted', $payload['state']);
+        self::assertNull($payload['child_app_login_url']);
+        self::assertSame(DemoRequest::STATUS_ACCEPTED, $demoRequest->getStatus());
     }
 
     public function testPostWithChildAppSyncFailureReturnsExplicitState(): void
@@ -198,6 +227,7 @@ final class OnboardingControllerTest extends TestCase
         EntityManagerInterface $em,
         ChildAppAdminClient $childAppAdminClient,
         ?MockClock $clock = null,
+        string $childAppLoginUrl = 'https://vault.example/login',
     ): array {
         $tokenManager = new OnboardingTokenManager(new SecretBox(self::SECRET_BOX_KEY), $clock ?? new MockClock('2026-03-03 12:00:00'));
         $controller = new OnboardingController(
@@ -206,6 +236,7 @@ final class OnboardingControllerTest extends TestCase
             $childAppAdminClient,
             $em,
             new NullLogger(),
+            $childAppLoginUrl,
         );
         $controller->setContainer($this->twigContainer());
 
@@ -255,11 +286,11 @@ final class OnboardingControllerTest extends TestCase
     }
 
     /**
-     * @return array{state: string, message: string, password_errors: list<string>}
+     * @return array{state: string, message: string, password_errors: list<string>, child_app_login_url: string|null}
      */
     private function decodeResponse(Response $response): array
     {
-        /** @var array{state: string, message: string, password_errors: list<string>} $decoded */
+        /** @var array{state: string, message: string, password_errors: list<string>, child_app_login_url: string|null} $decoded */
         $decoded = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
         return $decoded;
@@ -280,6 +311,9 @@ final class OnboardingControllerTest extends TestCase
                     'password_errors' => isset($parameters['password_errors']) && is_array($parameters['password_errors'])
                         ? $parameters['password_errors']
                         : [],
+                    'child_app_login_url' => isset($parameters['child_app_login_url']) && (is_string($parameters['child_app_login_url']) || null === $parameters['child_app_login_url'])
+                        ? $parameters['child_app_login_url']
+                        : null,
                 ], JSON_THROW_ON_ERROR);
             }
         };

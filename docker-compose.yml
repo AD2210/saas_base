@@ -5,6 +5,8 @@ services:
     environment:
       APP_ENV: dev
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${APP_HTTP_PORT:-8088}:8080"
     depends_on:
@@ -18,6 +20,8 @@ services:
     environment:
       APP_ENV: dev
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - db
     volumes:
@@ -25,6 +29,26 @@ services:
       - symfony_var:/app/var
     command: [ "php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M" ]
     restart: unless-stopped
+    healthcheck:
+      disable: true
+  child-app:
+    build: ./docker/php
+    working_dir: /app
+    environment:
+      APP_ENV: dev
+      APP_RUNTIME: Symfony\Component\Runtime\SymfonyRuntime
+      APP_SECRET: child-app-dev-secret
+      APP_2FA_ISSUER: Client Secrets Vault
+      VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      CHILD_APP_PROVISIONING_TOKEN: change-this-provisioning-token
+      DATABASE_URL: "sqlite:////app/var/data_dev.db"
+    volumes:
+      - ../client_secret_vault:/app:cached
+    command: [ "php", "-S", "0.0.0.0:8000", "-t", "public", "public/index.php" ]
+    ports:
+      - "${CHILD_APP_HTTP_PORT:-8090}:8000"
+    expose:
+      - "8000"
     healthcheck:
       disable: true
   db:

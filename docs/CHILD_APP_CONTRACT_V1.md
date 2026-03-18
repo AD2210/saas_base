@@ -16,7 +16,8 @@ Synchroniser/créer l'utilisateur admin tenant côté app fille au moment de l'o
 
 ## 3) Configuration app mère
 
-- `MAIN_CHILD_APP_API_URL`: base URL de l'app fille (ex: `https://child-app.example`)
+- `MAIN_CHILD_APP_API_URL`: base URL de l'app fille pour le provisioning interne (ex: `https://child-app.example`)
+- `MAIN_CHILD_APP_LOGIN_URL`: URL publique de login de l'app fille (ex: `https://child-app.example/login`)
 - `MAIN_CHILD_APP_API_TOKEN`: token Bearer de provisioning
 
 Si `MAIN_CHILD_APP_API_URL` est vide, la synchronisation est ignorée (mode local/dev).
