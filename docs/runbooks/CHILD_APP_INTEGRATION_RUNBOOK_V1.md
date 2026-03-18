@@ -33,10 +33,13 @@ EN: connect mother app to child app to sync/provision tenant admin during onboar
 Variables à définir:
 
 ```dotenv
-MAIN_CHILD_APP_API_URL=https://child-app.example
-MAIN_CHILD_APP_LOGIN_URL=https://child-app.example/login
-MAIN_CHILD_APP_API_TOKEN=replace-with-strong-token
+DEFAULT_CHILD_APP_KEY=vault
+CHILD_APP_VAULT_API_URL=https://child-app.example
+CHILD_APP_VAULT_LOGIN_URL=https://child-app.example/login
+CHILD_APP_VAULT_API_TOKEN=replace-with-strong-token
 ```
+
+Si plusieurs apps filles existent, les déclarer dans `config/packages/child_apps.yaml` avec une clé stable (`vault`, `ops`, etc.) et dupliquer le triplet `API_URL / LOGIN_URL / API_TOKEN` par profil.
 
 Fichier local recommandé:
 - `dev`: `.env.local` (non commité)
@@ -60,7 +63,11 @@ curl -i -X POST "${CHILD_URL}/internal/provisioning/tenant-admin" \
   -H "Accept: application/json" \
   -d '{
     "contract":"tenant-admin-provisioning:v1",
+    "child_app_key":"vault",
+    "child_app_name":"Client Secrets Vault",
     "tenant_uuid":"11111111-2222-7333-8444-555555555555",
+    "tenant_slug":"acme-demo",
+    "tenant_name":"Acme Demo",
     "user_uuid":"aaaaaaaa-bbbb-7ccc-8ddd-eeeeeeeeeeee",
     "email":"admin@example.com",
     "first_name":"Ada",
@@ -88,7 +95,7 @@ Résultat attendu:
    docker compose ps
    ```
 3. Soumettre une demande démo (landing):
-   - route `/api/demo-requests` (ou formulaire `/`).
+   - route `/api/demo-requests` (ou formulaire `/` pour la clé par défaut, `/demo/{childAppKey}` pour une app fille spécifique).
 4. Récupérer le lien onboarding (mail async en dev via Messenger).
 5. Ouvrir `/onboarding/set-password?token=...` et définir un mot de passe fort.
 6. Contrôler résultat:
@@ -110,9 +117,9 @@ Résultat attendu:
 
 | Cas | Entrée | Résultat attendu |
 |---|---|---|
-| URL absente en dev | `MAIN_CHILD_APP_API_URL=` | skip non bloquant + log `child.app.admin.sync.skipped` |
-| URL absente en beta/prod | `MAIN_CHILD_APP_API_URL=` | erreur explicite (pas de skip silencieux) |
-| Token absent | `MAIN_CHILD_APP_API_TOKEN=` | erreur explicite |
+| URL absente en dev | `api_url` vide pour le profil ciblé | skip non bloquant + log `child.app.admin.sync.skipped` |
+| URL absente en beta/prod | `api_url` vide pour le profil ciblé | erreur explicite (pas de skip silencieux) |
+| Token absent | `api_token` vide pour le profil ciblé | erreur explicite |
 | Token invalide | Bearer incorrect | HTTP 401/403 côté app fille + `sync_failed` côté app mère |
 | Endpoint indisponible | app fille down / timeout | `sync_failed` côté app mère |
 | Retour 5xx app fille | erreur interne | `sync_failed` côté app mère |

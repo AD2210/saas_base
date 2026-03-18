@@ -30,7 +30,7 @@ final class DemoRequestCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('Demo Request')
             ->setEntityLabelInPlural('Demo Requests')
             ->setDefaultSort(['requestedAt' => 'DESC'])
-            ->setSearchFields(['status', 'onboardingTokenHash']);
+            ->setSearchFields(['status', 'childAppKey', 'onboardingTokenHash']);
     }
 
     public function configureActions(Actions $actions): Actions
@@ -45,6 +45,7 @@ final class DemoRequestCrudController extends AbstractCrudController
         yield IdField::new('id')->hideOnForm();
         yield AssociationField::new('contact');
         yield AssociationField::new('tenant');
+        yield TextField::new('childAppKey', 'Child App');
         yield TextField::new('status');
         yield DateTimeField::new('requestedAt');
         yield DateTimeField::new('expiresAt');

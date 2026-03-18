@@ -6,10 +6,13 @@
     --text-primary: #0f172a;
     --text-secondary: #334155;
     --accent: #c2410c;
+    --accent-secondary: #ea580c;
     --accent-hover: #9a3412;
     --ring: rgba(194, 65, 12, 0.25);
     --success: #14532d;
     --danger: #991b1b;
+    --glow-primary: rgba(255, 166, 0, 0.18);
+    --glow-secondary: rgba(37, 99, 235, 0.22);
 }
 
 *,
@@ -29,8 +32,8 @@ body {
     font-family: "Space Grotesk", "Sora", "Avenir Next", "Segoe UI", sans-serif;
     color: var(--text-primary);
     background:
-        radial-gradient(60vw 60vw at 10% -10%, rgba(255, 166, 0, 0.18), transparent 72%),
-        radial-gradient(50vw 50vw at 90% 120%, rgba(37, 99, 235, 0.22), transparent 66%),
+        radial-gradient(60vw 60vw at 10% -10%, var(--glow-primary), transparent 72%),
+        radial-gradient(50vw 50vw at 90% 120%, var(--glow-secondary), transparent 66%),
         linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
 }
 
@@ -92,6 +95,32 @@ body {
     font-size: 0.84rem;
     font-weight: 600;
     color: #1e293b;
+}
+
+.hero__apps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1.3rem;
+}
+
+.hero__app-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.68);
+    color: var(--text-primary);
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.hero__app-link--active {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+    color: #fff;
 }
 
 .hero__form-card {
@@ -159,7 +188,7 @@ input:focus {
     margin-top: 0.45rem;
     border: 0;
     border-radius: 0.8rem;
-    background: linear-gradient(135deg, var(--accent), #ea580c);
+    background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -233,6 +262,10 @@ input:focus {
 .onboarding-message {
     margin-top: 0.5rem;
     color: var(--text-secondary);
+}
+
+.onboarding-message--intro {
+    margin-top: 0.3rem;
 }
 
 .onboarding-form {

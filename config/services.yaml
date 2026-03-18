@@ -4,12 +4,19 @@ services:
         autoconfigure: true
         bind:
             $hexKey: '%env(APP_SECRETBOX_KEY)%'
-            $childAppLoginUrl: '%env(string:MAIN_CHILD_APP_LOGIN_URL)%'
 
     App\:
         resource: '../src/'
         exclude:
             - '../src/Kernel.php'
+
+    App\ChildApp\ChildAppCatalog:
+        arguments:
+            $config: '%app.child_apps%'
+
+    App\Infrastructure\Provisioning\ChildAppAdminClient:
+        arguments:
+            $environment: '%kernel.environment%'
 
     App\Infrastructure\Provisioning\PostgresDbOrchestrator:
         arguments:

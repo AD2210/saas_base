@@ -32,13 +32,13 @@ final class AdminCrudControllersTest extends TestCase
             $controller->configureCrud(Crud::new()),
             'Tenant',
             'Tenants',
-            ['slug', 'name', 'adminEmail', 'status'],
+            ['slug', 'name', 'childAppKey', 'adminEmail', 'status'],
             ['createdAt' => 'DESC']
         );
         $this->assertIndexDetailAndDisabledMutations($controller->configureActions(Actions::new()));
         $this->assertFieldProperties(
             $controller->configureFields(Crud::PAGE_INDEX),
-            ['id', 'slug', 'name', 'adminEmail', 'adminFirstName', 'adminLastName', 'plan', 'status', 'isActive', 'dbHost', 'dbName', 'createdAt', 'updatedAt', 'deletedAt']
+            ['id', 'slug', 'name', 'childAppKey', 'adminEmail', 'adminFirstName', 'adminLastName', 'plan', 'status', 'isActive', 'dbHost', 'dbName', 'createdAt', 'updatedAt', 'deletedAt']
         );
     }
 
@@ -70,13 +70,13 @@ final class AdminCrudControllersTest extends TestCase
             $controller->configureCrud(Crud::new()),
             'Demo Request',
             'Demo Requests',
-            ['status', 'onboardingTokenHash'],
+            ['status', 'childAppKey', 'onboardingTokenHash'],
             ['requestedAt' => 'DESC']
         );
         $this->assertIndexDetailAndDisabledMutations($controller->configureActions(Actions::new()));
         $this->assertFieldProperties(
             $controller->configureFields(Crud::PAGE_INDEX),
-            ['id', 'contact', 'tenant', 'status', 'requestedAt', 'expiresAt', 'acceptedAt', 'onboardingTokenHash', 'createdAt', 'updatedAt', 'deletedAt']
+            ['id', 'contact', 'tenant', 'childAppKey', 'status', 'requestedAt', 'expiresAt', 'acceptedAt', 'onboardingTokenHash', 'createdAt', 'updatedAt', 'deletedAt']
         );
     }
 

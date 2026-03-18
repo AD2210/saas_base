@@ -12,22 +12,30 @@ Synchroniser/créer l'utilisateur admin tenant côté app fille au moment de l'o
 - Method: `POST`
 - Path: `/internal/provisioning/tenant-admin`
 - Auth: `Authorization: Bearer <token>`
-- Token source côté app mère: `MAIN_CHILD_APP_API_TOKEN`
+- Token source côté app mère: profil `api_token` du catalogue `config/packages/child_apps.yaml`
 
 ## 3) Configuration app mère
 
-- `MAIN_CHILD_APP_API_URL`: base URL de l'app fille pour le provisioning interne (ex: `https://child-app.example`)
-- `MAIN_CHILD_APP_LOGIN_URL`: URL publique de login de l'app fille (ex: `https://child-app.example/login`)
-- `MAIN_CHILD_APP_API_TOKEN`: token Bearer de provisioning
+- `DEFAULT_CHILD_APP_KEY`: clé par défaut pour `/`
+- `config/packages/child_apps.yaml`: catalogue des apps filles
+- pour chaque profil:
+  - `api_url`: base URL de provisioning interne (ex: `https://child-app.example`)
+  - `login_url`: URL publique de login (ex: `https://child-app.example/login`)
+  - `api_token`: token Bearer de provisioning
+  - branding/landing/onboarding: copy + thème visuel utilisés par `/demo/{childAppKey}` et `/onboarding/set-password`
 
-Si `MAIN_CHILD_APP_API_URL` est vide, la synchronisation est ignorée (mode local/dev).
+Si `api_url` est vide pour le profil ciblé, la synchronisation est ignorée en `dev` et échoue explicitement en `beta/prod`.
 
 ## 4) Payload JSON V1
 
 ```json
 {
   "contract": "tenant-admin-provisioning:v1",
+  "child_app_key": "vault",
+  "child_app_name": "Client Secrets Vault",
   "tenant_uuid": "uuid",
+  "tenant_slug": "acme-demo",
+  "tenant_name": "Acme Demo",
   "user_uuid": "uuid",
   "email": "admin@example.com",
   "first_name": "Ada",
@@ -55,6 +63,7 @@ L'endpoint app fille doit être idempotent:
 - `tenant_uuid`
 - `user_uuid`
 - `contract`
+- `child_app_key`
 - `status_code`
 - timestamp ISO-8601
 

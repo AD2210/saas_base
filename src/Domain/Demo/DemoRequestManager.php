@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Demo;
 
+use App\ChildApp\ChildAppCatalog;
 use App\Entity\Contact;
 use App\Entity\DemoRequest;
 use App\Infrastructure\Provisioning\OnboardingTokenManager;
@@ -19,6 +20,7 @@ final readonly class DemoRequestManager
         private EntityManagerInterface $em,
         private TenantProvisioner $tenantProvisioner,
         private OnboardingTokenManager $tokenManager,
+        private ChildAppCatalog $childAppCatalog,
         private MailerInterface $mailer,
         private LoggerInterface $logger,
     ) {
@@ -33,8 +35,10 @@ final readonly class DemoRequestManager
         string $phone,
         string $company,
         string $baseUrl,
+        ?string $childAppKey = null,
         ?string $slug = null,
     ): DemoRequest {
+        $childApp = $this->childAppCatalog->resolve($childAppKey);
         $contact = $this->em->getRepository(Contact::class)->findOneBy(['email' => mb_strtolower(trim($email))]);
         if (!$contact instanceof Contact) {
             $contact = new Contact($email, $firstName, $lastName, $address, $birthDate, $phone);
@@ -46,6 +50,7 @@ final readonly class DemoRequestManager
             company: $company,
             firstName: $firstName,
             lastName: $lastName,
+            childAppKey: $childApp->getKey(),
             slug: $slug,
         );
         $this->tenantProvisioner->provisionDatabase($tenant);
@@ -58,12 +63,13 @@ final readonly class DemoRequestManager
         $this->em->flush();
 
         $onboardingUrl = rtrim($baseUrl, '/').'/onboarding/set-password?token='.urlencode($token);
-        $this->sendOnboardingMail($email, $firstName, $onboardingUrl);
+        $this->sendOnboardingMail($email, $firstName, $childApp->getName(), $onboardingUrl);
 
         $this->logger->info('demo.request.created', [
             'demo_request_uuid' => $demoRequest->getIdString(),
             'tenant_uuid' => $tenant->getIdString(),
             'tenant_slug' => $tenant->getSlug(),
+            'child_app_key' => $childApp->getKey(),
             'contact_email' => $contact->getEmail(),
             'demo_expires_at' => $demoRequest->getExpiresAt()->format(\DateTimeInterface::ATOM),
         ]);
@@ -71,15 +77,16 @@ final readonly class DemoRequestManager
         return $demoRequest;
     }
 
-    private function sendOnboardingMail(string $email, string $firstName, string $onboardingUrl): void
+    private function sendOnboardingMail(string $email, string $firstName, string $childAppName, string $onboardingUrl): void
     {
         $mail = (new Email())
             ->from('no-reply@dsn-dev.com')
             ->to($email)
-            ->subject('Activation de votre espace de demo')
+            ->subject(sprintf('Activation de votre demo %s', $childAppName))
             ->text(sprintf(
-                "Bonjour %s,\n\nVotre demande de demo est enregistree.\n\nUtilisez ce lien pour creer votre mot de passe (valide 24h):\n%s\n",
+                "Bonjour %s,\n\nVotre demande de demo %s est enregistree.\n\nUtilisez ce lien pour creer votre mot de passe (valide 24h):\n%s\n",
                 $firstName,
+                $childAppName,
                 $onboardingUrl
             ));
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit;
 
+use App\ChildApp\ChildAppCatalog;
 use App\Controller\OnboardingController;
 use App\Domain\Demo\PasswordPolicy;
 use App\Entity\Contact;
@@ -177,7 +178,7 @@ final class OnboardingControllerTest extends TestCase
             $this->entityManagerReturningDemoRequest($demoRequest, 1),
             $this->childClientSuccess(),
             $clock,
-            ''
+            $this->childAppCatalog('https://child-app.local', '', 'token')
         );
         $token = $tokenManager->generateToken($tenant, 3600);
         $demoRequest->setOnboardingTokenHash(hash('sha256', $token));
@@ -227,7 +228,7 @@ final class OnboardingControllerTest extends TestCase
         EntityManagerInterface $em,
         ChildAppAdminClient $childAppAdminClient,
         ?MockClock $clock = null,
-        string $childAppLoginUrl = 'https://vault.example/login',
+        ?ChildAppCatalog $childAppCatalog = null,
     ): array {
         $tokenManager = new OnboardingTokenManager(new SecretBox(self::SECRET_BOX_KEY), $clock ?? new MockClock('2026-03-03 12:00:00'));
         $controller = new OnboardingController(
@@ -236,7 +237,7 @@ final class OnboardingControllerTest extends TestCase
             $childAppAdminClient,
             $em,
             new NullLogger(),
-            $childAppLoginUrl,
+            $childAppCatalog ?? $this->childAppCatalog(),
         );
         $controller->setContainer($this->twigContainer());
 
@@ -261,12 +262,12 @@ final class OnboardingControllerTest extends TestCase
 
     private function childClientSuccess(): ChildAppAdminClient
     {
-        return new ChildAppAdminClient(new MockHttpClient(), new NullLogger(), '', '', 'dev');
+        return new ChildAppAdminClient(new MockHttpClient(), new NullLogger(), $this->childAppCatalog('', 'https://vault.example/login', ''), 'dev');
     }
 
     private function childClientFailure(): ChildAppAdminClient
     {
-        return new ChildAppAdminClient(new MockHttpClient(), new NullLogger(), 'https://child-app.local', '', 'dev');
+        return new ChildAppAdminClient(new MockHttpClient(), new NullLogger(), $this->childAppCatalog('https://child-app.local', 'https://vault.example/login', ''), 'dev');
     }
 
     private function createTenant(): Tenant
@@ -294,6 +295,24 @@ final class OnboardingControllerTest extends TestCase
         $decoded = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
         return $decoded;
+    }
+
+    private function childAppCatalog(
+        string $apiUrl = 'https://child-app.local',
+        string $loginUrl = 'https://vault.example/login',
+        string $apiToken = 'token',
+    ): ChildAppCatalog {
+        return new ChildAppCatalog([
+            'default_key' => 'vault',
+            'apps' => [
+                'vault' => [
+                    'name' => 'Client Secrets Vault',
+                    'api_url' => $apiUrl,
+                    'login_url' => $loginUrl,
+                    'api_token' => $apiToken,
+                ],
+            ],
+        ]);
     }
 
     private function twigContainer(): ContainerInterface

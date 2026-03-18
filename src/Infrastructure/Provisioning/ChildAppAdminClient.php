@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Provisioning;
 
+use App\ChildApp\ChildAppCatalog;
 use App\Entity\Tenant;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -16,9 +16,8 @@ final class ChildAppAdminClient
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
-        #[Autowire('%env(string:MAIN_CHILD_APP_API_URL)%')] private readonly string $apiBaseUrl,
-        #[Autowire('%env(string:MAIN_CHILD_APP_API_TOKEN)%')] private readonly string $apiToken,
-        #[Autowire('%kernel.environment%')] private readonly string $environment,
+        private readonly ChildAppCatalog $childAppCatalog,
+        private readonly string $environment,
     ) {
     }
 
@@ -27,14 +26,16 @@ final class ChildAppAdminClient
      */
     public function syncTenantAdmin(Tenant $tenant, string $plainPassword): void
     {
-        $baseUrl = trim($this->apiBaseUrl);
+        $childApp = $this->childAppCatalog->resolve($tenant->getChildAppKey());
+        $baseUrl = $childApp->getApiUrl();
         if ('' === $baseUrl) {
             if (in_array($this->environment, ['prod', 'beta'], true)) {
-                throw new ServiceUnavailableHttpException(null, 'Child app API URL is missing.');
+                throw new ServiceUnavailableHttpException(null, sprintf('Child app API URL is missing for "%s".', $tenant->getChildAppKey()));
             }
 
             $this->logger->notice('child.app.admin.sync.skipped', [
-                'reason' => 'MAIN_CHILD_APP_API_URL is empty',
+                'reason' => 'child app api url is empty',
+                'child_app_key' => $tenant->getChildAppKey(),
                 'tenant_uuid' => $tenant->getIdString(),
                 'contract' => 'tenant-admin-provisioning:v1',
             ]);
@@ -42,15 +43,19 @@ final class ChildAppAdminClient
             return;
         }
 
-        $token = trim($this->apiToken);
+        $token = $childApp->getApiToken();
         if ('' === $token) {
-            throw new ServiceUnavailableHttpException(null, 'Child app API token is missing.');
+            throw new ServiceUnavailableHttpException(null, sprintf('Child app API token is missing for "%s".', $tenant->getChildAppKey()));
         }
 
         $now = new \DateTimeImmutable();
         $payload = [
             'contract' => 'tenant-admin-provisioning:v1',
+            'child_app_key' => $tenant->getChildAppKey(),
+            'child_app_name' => $childApp->getName(),
             'tenant_uuid' => $tenant->getIdString(),
+            'tenant_slug' => $tenant->getSlug(),
+            'tenant_name' => $tenant->getName(),
             'user_uuid' => $tenant->getAdminUserUuidString(),
             'email' => $tenant->getAdminEmail(),
             'first_name' => $tenant->getAdminFirstName(),
@@ -82,6 +87,7 @@ final class ChildAppAdminClient
 
         $this->logger->info('child.app.admin.sync.succeeded', [
             'tenant_uuid' => $tenant->getIdString(),
+            'child_app_key' => $tenant->getChildAppKey(),
             'contract' => 'tenant-admin-provisioning:v1',
             'status_code' => $statusCode,
         ]);

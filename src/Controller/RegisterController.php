@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\ChildApp\ChildAppCatalog;
 use App\Domain\Demo\DemoRequestManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -14,6 +15,7 @@ final readonly class RegisterController
 {
     public function __construct(
         private DemoRequestManager $demoRequestManager,
+        private ChildAppCatalog $childAppCatalog,
         private LoggerInterface $logger,
     ) {
     }
@@ -34,6 +36,7 @@ final readonly class RegisterController
         }
 
         try {
+            $childApp = $this->childAppCatalog->resolve(isset($payload['child_app_key']) ? (string) $payload['child_app_key'] : null);
             $demoRequest = $this->demoRequestManager->requestDemo(
                 email: (string) $payload['email'],
                 firstName: (string) $payload['first_name'],
@@ -43,6 +46,7 @@ final readonly class RegisterController
                 phone: (string) $payload['phone'],
                 company: (string) $payload['company'],
                 baseUrl: $request->getSchemeAndHttpHost(),
+                childAppKey: $childApp->getKey(),
                 slug: isset($payload['slug']) ? (string) $payload['slug'] : null,
             );
         } catch (\Throwable $exception) {
@@ -65,6 +69,8 @@ final readonly class RegisterController
             'demo_request_uuid' => $demoRequest->getIdString(),
             'tenant_uuid' => $tenant->getIdString(),
             'tenant_slug' => $tenant->getSlug(),
+            'child_app_key' => $tenant->getChildAppKey(),
+            'child_app_name' => $childApp->getName(),
             'demo_expires_at' => $demoRequest->getExpiresAt()->format(\DateTimeInterface::ATOM),
         ], 201);
     }
@@ -108,6 +114,13 @@ final readonly class RegisterController
 
         if (isset($payload['email']) && !filter_var((string) $payload['email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'email is invalid';
+        }
+
+        if (isset($payload['child_app_key']) && '' !== trim((string) $payload['child_app_key'])) {
+            $childAppKey = trim((string) $payload['child_app_key']);
+            if (!$this->childAppCatalog->hasKey($childAppKey)) {
+                $errors[] = 'child_app_key is invalid';
+            }
         }
 
         return $errors;

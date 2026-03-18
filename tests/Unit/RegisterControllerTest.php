@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit;
 
+use App\ChildApp\ChildAppCatalog;
 use App\Controller\RegisterController;
 use App\Domain\Demo\DemoRequestManager;
 use App\Entity\Contact;
@@ -28,7 +29,7 @@ final class RegisterControllerTest extends TestCase
 
     public function testInvokeReturnsValidationErrorsWhenRequiredFieldsAreMissing(): void
     {
-        $controller = new RegisterController($this->buildDemoRequestManager(false), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger());
 
         $response = $controller($this->jsonRequest([]));
         $payload = $this->decodeJsonResponse($response->getContent() ?: '{}');
@@ -41,7 +42,7 @@ final class RegisterControllerTest extends TestCase
 
     public function testInvokeReturnsValidationErrorWhenBirthDateFormatIsInvalid(): void
     {
-        $controller = new RegisterController($this->buildDemoRequestManager(false), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -67,7 +68,7 @@ final class RegisterControllerTest extends TestCase
                 return str_contains((string) $email->getTextBody(), '/onboarding/set-password?token=');
             }));
 
-        $controller = new RegisterController($this->buildDemoRequestManager(false, $mailer), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false, $mailer), $this->childAppCatalog(), new NullLogger());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -85,6 +86,8 @@ final class RegisterControllerTest extends TestCase
         self::assertTrue(Uuid::isValid((string) $payload['demo_request_uuid']));
         self::assertTrue(Uuid::isValid((string) $payload['tenant_uuid']));
         self::assertSame('acme-company', $payload['tenant_slug']);
+        self::assertSame('vault', $payload['child_app_key']);
+        self::assertSame('Client Secrets Vault', $payload['child_app_name']);
         self::assertNotSame(false, strtotime((string) $payload['demo_expires_at']));
     }
 
@@ -93,7 +96,7 @@ final class RegisterControllerTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects($this->never())->method('send');
 
-        $controller = new RegisterController($this->buildDemoRequestManager(true, $mailer), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(true, $mailer), $this->childAppCatalog(), new NullLogger());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -109,6 +112,26 @@ final class RegisterControllerTest extends TestCase
         self::assertSame(503, $response->getStatusCode());
         self::assertSame('failed', $payload['status']);
         self::assertSame('demo provisioning failed, please retry later', $payload['error']);
+    }
+
+    public function testInvokeRejectsUnknownChildAppKey(): void
+    {
+        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger());
+
+        $response = $controller($this->jsonRequest([
+            'email' => 'owner@example.com',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'address' => '1 Main Street',
+            'birth_date' => '1990-01-01',
+            'phone' => '+33102030405',
+            'company' => 'Acme Company',
+            'child_app_key' => 'unknown-app',
+        ]));
+        $payload = $this->decodeJsonResponse($response->getContent() ?: '{}');
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertContains('child_app_key is invalid', $payload['errors']);
     }
 
     private function buildDemoRequestManager(bool $provisioningFails, ?MailerInterface $mailer = null): DemoRequestManager
@@ -154,6 +177,7 @@ final class RegisterControllerTest extends TestCase
             $em,
             $provisioner,
             $tokenManager,
+            $this->childAppCatalog(),
             $mailer ?? $this->createMock(MailerInterface::class),
             new NullLogger(),
         );
@@ -176,13 +200,34 @@ final class RegisterControllerTest extends TestCase
     }
 
     /**
-     * @return array{status: string, errors?: list<string>, error?: string, demo_request_uuid?: string, tenant_uuid?: string, tenant_slug?: string, demo_expires_at?: string}
+     * @return array{status: string, errors?: list<string>, error?: string, demo_request_uuid?: string, tenant_uuid?: string, tenant_slug?: string, child_app_key?: string, child_app_name?: string, demo_expires_at?: string}
      */
     private function decodeJsonResponse(string $content): array
     {
-        /** @var array{status: string, errors?: list<string>, error?: string, demo_request_uuid?: string, tenant_uuid?: string, tenant_slug?: string, demo_expires_at?: string} $decoded */
+        /** @var array{status: string, errors?: list<string>, error?: string, demo_request_uuid?: string, tenant_uuid?: string, tenant_slug?: string, child_app_key?: string, child_app_name?: string, demo_expires_at?: string} $decoded */
         $decoded = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
 
         return $decoded;
+    }
+
+    private function childAppCatalog(): ChildAppCatalog
+    {
+        return new ChildAppCatalog([
+            'default_key' => 'vault',
+            'apps' => [
+                'vault' => [
+                    'name' => 'Client Secrets Vault',
+                    'api_url' => 'https://vault.example',
+                    'login_url' => 'https://vault.example/login',
+                    'api_token' => 'vault-token',
+                ],
+                'ops' => [
+                    'name' => 'Deploy Ops Center',
+                    'api_url' => 'https://ops.example',
+                    'login_url' => 'https://ops.example/login',
+                    'api_token' => 'ops-token',
+                ],
+            ],
+        ]);
     }
 }

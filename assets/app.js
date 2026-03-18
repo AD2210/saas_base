@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errors);
             }
 
-            statusNode.textContent = `Demo request accepted. Tenant ${body.tenant_slug} is being prepared. Check your inbox for the onboarding link.`;
+            const appName = typeof body.child_app_name === 'string' && body.child_app_name !== '' ? body.child_app_name : 'the requested app';
+            statusNode.textContent = `Demo request accepted for ${appName}. Tenant ${body.tenant_slug} is being prepared. Check your inbox for the onboarding link.`;
             statusNode.dataset.state = 'success';
             form.reset();
         } catch (error) {

@@ -65,18 +65,22 @@ php bin/console cache:warmup --env=dev
 2) Backend provisions tenant + demo request, then queues onboarding email through Messenger.
 3) Onboarding link points to `/onboarding/set-password?token=...` with one-time token semantics.
 4) On password submit, mother app can sync tenant admin into child app contract `tenant-admin-provisioning:v1`.
-5) Child app sync config (optional in local dev):
-   - `MAIN_CHILD_APP_API_URL=https://child-app.example`
-   - `MAIN_CHILD_APP_LOGIN_URL=https://child-app.example/login`
-   - `MAIN_CHILD_APP_API_TOKEN=...`
-6) Contract details: `docs/CHILD_APP_CONTRACT_V1.md`
-7) Integration runbook (commands + validations): `docs/runbooks/CHILD_APP_INTEGRATION_RUNBOOK_V1.md`
+5) Child app catalog lives in `config/packages/child_apps.yaml`.
+6) Each demo request carries a `child_app_key`, so `/demo/{childAppKey}` can load a dedicated copy/theme and route onboarding to the matching child app.
+7) Contract details: `docs/CHILD_APP_CONTRACT_V1.md`
+8) Integration runbook (commands + validations): `docs/runbooks/CHILD_APP_INTEGRATION_RUNBOOK_V1.md`
 
 Local Docker note:
 - for the local integration path in this repository, `docker compose` can run a `child-app` service from `../client_secret_vault`
-- in that mode use `MAIN_CHILD_APP_API_URL=http://child-app:8000`
+- default child app key is `vault`
 - expose the child app locally with `CHILD_APP_HTTP_PORT=8090`
-- in that mode use `MAIN_CHILD_APP_LOGIN_URL=http://127.0.0.1:8090/login`
+- local profile env vars are:
+  - `CHILD_APP_VAULT_API_URL=http://child-app:8000`
+  - `CHILD_APP_VAULT_LOGIN_URL=http://127.0.0.1:8090/login`
+  - `CHILD_APP_VAULT_API_TOKEN=...`
+  - `CHILD_APP_OPS_API_URL=http://child-app:8000`
+  - `CHILD_APP_OPS_LOGIN_URL=http://127.0.0.1:8090/login`
+  - `CHILD_APP_OPS_API_TOKEN=...`
 - access the mother app through `http://127.0.0.1:8088`
 - do not use `symfony serve` for this stack: it bypasses the Docker DB settings and can fail against `127.0.0.1:5432`
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\ChildApp\ChildAppCatalog;
+use App\ChildApp\ChildAppProfile;
 use App\Domain\Demo\PasswordPolicy;
 use App\Entity\DemoRequest;
 use App\Infrastructure\Provisioning\ChildAppAdminClient;
@@ -24,7 +26,7 @@ final class OnboardingController extends AbstractController
         private readonly ChildAppAdminClient $childAppAdminClient,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
-        private readonly string $childAppLoginUrl,
+        private readonly ChildAppCatalog $childAppCatalog,
     ) {
     }
 
@@ -49,6 +51,8 @@ final class OnboardingController extends AbstractController
         }
 
         $context['child_app_login_url'] = $this->buildChildAppLoginUrl($context);
+        $context['child_app_profile'] = $this->resolveChildAppProfile($context);
+        $context['app_theme_style'] = $context['child_app_profile']->getThemeStyle();
 
         return $this->render('onboarding/set_password.html.twig', $context);
     }
@@ -61,7 +65,9 @@ final class OnboardingController extends AbstractController
      *     demo_request: DemoRequest|null,
      *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
      *     password_errors: list<string>,
-     *     child_app_login_url?: string|null
+     *     child_app_login_url?: string|null,
+     *     child_app_profile?: ChildAppProfile,
+     *     app_theme_style?: string
      * } $context
      *
      * @return array{
@@ -71,7 +77,9 @@ final class OnboardingController extends AbstractController
      *     demo_request: DemoRequest|null,
      *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
      *     password_errors: list<string>,
-     *     child_app_login_url?: string|null
+     *     child_app_login_url?: string|null,
+     *     child_app_profile?: ChildAppProfile,
+     *     app_theme_style?: string
      * }
      */
     private function handlePasswordSubmission(Request $request, array $context): array
@@ -139,7 +147,9 @@ final class OnboardingController extends AbstractController
      *     demo_request: DemoRequest|null,
      *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
      *     password_errors: list<string>,
-     *     child_app_login_url?: string|null
+     *     child_app_login_url?: string|null,
+     *     child_app_profile?: ChildAppProfile,
+     *     app_theme_style?: string
      * } $context
      */
     private function redirectToChildAppLogin(array $context): ?RedirectResponse
@@ -160,12 +170,14 @@ final class OnboardingController extends AbstractController
      *     demo_request: DemoRequest|null,
      *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
      *     password_errors?: list<string>,
-     *     child_app_login_url?: string|null
+     *     child_app_login_url?: string|null,
+     *     child_app_profile?: ChildAppProfile,
+     *     app_theme_style?: string
      * } $context
      */
     private function buildChildAppLoginUrl(array $context): ?string
     {
-        $baseLoginUrl = trim($this->childAppLoginUrl);
+        $baseLoginUrl = $this->resolveChildAppProfile($context)->getLoginUrl();
         if ('' === $baseLoginUrl) {
             return null;
         }
@@ -178,6 +190,33 @@ final class OnboardingController extends AbstractController
         $separator = str_contains($baseLoginUrl, '?') ? '&' : '?';
 
         return $baseLoginUrl.$separator.'email='.rawurlencode($email);
+    }
+
+    /**
+     * @param array{
+     *     state: string,
+     *     token: string,
+     *     message: string,
+     *     demo_request: DemoRequest|null,
+     *     payload: array{tenant_uuid: string, user_uuid: string, email: string, exp: int}|null,
+     *     password_errors?: list<string>,
+     *     child_app_login_url?: string|null,
+     *     child_app_profile?: ChildAppProfile,
+     *     app_theme_style?: string
+     * } $context
+     */
+    private function resolveChildAppProfile(array $context): ChildAppProfile
+    {
+        if (($context['child_app_profile'] ?? null) instanceof ChildAppProfile) {
+            return $context['child_app_profile'];
+        }
+
+        $demoRequest = $context['demo_request'] ?? null;
+        if ($demoRequest instanceof DemoRequest) {
+            return $this->childAppCatalog->resolve($demoRequest->getTenant()->getChildAppKey());
+        }
+
+        return $this->childAppCatalog->getDefault();
     }
 
     /**
