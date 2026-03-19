@@ -73,9 +73,9 @@ jobs:
     steps:
       - name: Validate secrets
         run: |
-          test -n "${{ secrets.PROD_SSH_HOST }}"
-          test -n "${{ secrets.PROD_SSH_USER }}"
-          test -n "${{ secrets.PROD_SSH_PRIVATE_KEY }}"
+          test -n "${{ secrets.PROD_HOST }}"
+          test -n "${{ secrets.PROD_USER }}"
+          test -n "${{ secrets.PROD_SSH_KEY }}"
 
       - name: Resolve ref
         id: resolve_ref
@@ -95,11 +95,15 @@ jobs:
         run: |
           tar \
             --exclude-vcs \
+            --exclude='./.env' \
+            --exclude='./.env.dev' \
+            --exclude='./.env.test' \
             --exclude='./vendor' \
             --exclude='./var' \
             --exclude='./tests' \
             --exclude='./docs' \
             --exclude='./.idea' \
+            --exclude='./docker-compose.dev.yml' \
             --exclude='./src/Debug' \
             --exclude='./src/DataFixtures' \
             --exclude='./config/routes/debug.yaml' \
@@ -109,21 +113,21 @@ jobs:
       - name: Configure SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
 
       - name: Add server to known_hosts
         run: |
-          ssh-keyscan -p "${{ secrets.PROD_SSH_PORT || '22' }}" "${{ secrets.PROD_SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${{ secrets.PROD_PORT || '22' }}" "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Upload artifact
         run: |
-          scp -P "${{ secrets.PROD_SSH_PORT || '22' }}" \
+          scp -P "${{ secrets.PROD_PORT || '22' }}" \
             "/tmp/saas-release-${GITHUB_SHA}.tar.gz" \
-            "${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}:/tmp/saas-release-${GITHUB_SHA}.tar.gz"
+            "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/tmp/saas-release-${GITHUB_SHA}.tar.gz"
 
       - name: Deploy on production server
         run: |
-          ssh -p "${{ secrets.PROD_SSH_PORT || '22' }}" "${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }}" \
+          ssh -p "${{ secrets.PROD_PORT || '22' }}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
             "DEPLOY_ENV_FILE='${{ secrets.PROD_DEPLOY_ENV_FILE || '/etc/saas/server.env' }}' DEPLOY_PROFILE='prod' GITHUB_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
           set -Eeuo pipefail
 

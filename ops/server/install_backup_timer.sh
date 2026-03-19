@@ -15,13 +15,18 @@ fi
 
 load_env_file "${ENV_FILE}"
 
-APP_ROOT="${APP_ROOT:-/srv/saas/current}"
+APP_ROOT="${APP_ROOT:-/srv/saas/app}"
 BACKUP_ONCALENDAR="${BACKUP_ONCALENDAR:-hourly}"
 BACKUP_ENV_TARGET="${BACKUP_ENV_TARGET:-/etc/saas/backup.env}"
 TEMPLATE_DIR="${SCRIPT_DIR}/../systemd"
 
 install_backup_env() {
     mkdir -p "$(dirname -- "${BACKUP_ENV_TARGET}")"
+    if [[ "$(readlink -f "${ENV_FILE}")" == "$(readlink -f "${BACKUP_ENV_TARGET}")" ]]; then
+        chmod 0600 "${BACKUP_ENV_TARGET}"
+        log_info "Backup env target already in place: ${BACKUP_ENV_TARGET}"
+        return 0
+    fi
     install -m 0600 "${ENV_FILE}" "${BACKUP_ENV_TARGET}"
     log_info "Installed backup env file to ${BACKUP_ENV_TARGET}"
 }

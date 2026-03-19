@@ -15,7 +15,7 @@ else
     exit 1
 fi
 
-APP_ROOT="${APP_ROOT:-/srv/saas/current}"
+APP_ROOT="${APP_ROOT:-/srv/saas/app}"
 DB_SERVICE="${DB_SERVICE:-db}"
 DB_CONTAINER="${DB_CONTAINER:-}"
 DB_MAIN_NAME="${DB_MAIN_NAME:-saas_base_main}"
@@ -42,7 +42,7 @@ db_exec() {
 
     (
         cd "${APP_ROOT}"
-        docker compose exec -T -u postgres "${DB_SERVICE}" "$@"
+        docker_compose exec -T -u postgres "${DB_SERVICE}" "$@"
     )
 }
 
@@ -74,7 +74,7 @@ assert_prerequisites() {
 
         if ! (
             cd "${APP_ROOT}" &&
-            docker compose ps --services --status running | grep -qx "${DB_SERVICE}"
+            docker_compose ps --services --status running | grep -qx "${DB_SERVICE}"
         ); then
             log_error "Database service is not running: ${DB_SERVICE} (APP_ROOT=${APP_ROOT})"
             exit 1

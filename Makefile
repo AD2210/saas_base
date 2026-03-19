@@ -1,58 +1,59 @@
 SHELL := /bin/bash
+COMPOSE_DEV := docker compose -f docker-compose.yml -f docker-compose.dev.yml
 
 up:        ## Start stack
-	docker compose up -d --build
+	$(COMPOSE_DEV) up -d --build
 
 rebuild:   ## Rebuild app image
-	docker compose build --no-cache app && docker compose up -d
+	$(COMPOSE_DEV) build --no-cache app && $(COMPOSE_DEV) up -d
 
 stop:      ## Stop stack
-	docker compose stop
+	$(COMPOSE_DEV) stop
 
 down:      ## Stop & remove
-	docker compose down -v
+	$(COMPOSE_DEV) down -v
 
 logs:      ## Tail app logs
-	docker compose logs -f app
+	$(COMPOSE_DEV) logs -f app
 
 worker-logs: ## Tail messenger worker logs
-	docker compose logs -f worker
+	$(COMPOSE_DEV) logs -f worker
 
 sh:        ## Shell into app
-	docker compose exec app bash || docker compose exec app sh
+	$(COMPOSE_DEV) exec app bash || $(COMPOSE_DEV) exec app sh
 
 console:   ## Symfony console inside container
-	docker compose exec app php bin/console $(cmd)
+	$(COMPOSE_DEV) exec app php bin/console $(cmd)
 
 cc:        ## Cache clear
-	docker compose exec app php bin/console cache:clear
+	$(COMPOSE_DEV) exec app php bin/console cache:clear
 
 composer-run: ## Run composer (one-shot): make composer-run cmd="install -n --prefer-dist"
-	docker compose run --rm app composer $(cmd)
+	$(COMPOSE_DEV) run --rm app composer $(cmd)
 
 install: ## composer install inside container (one-shot)
-	docker compose run --rm app composer install --no-interaction --prefer-dist
+	$(COMPOSE_DEV) run --rm app composer install --no-interaction --prefer-dist
 
 composer:  ## Run composer inside container: make composer cmd="require vendor/pkg"
-	docker compose exec app composer $(cmd)
+	$(COMPOSE_DEV) exec app composer $(cmd)
 
 require-frankenphp: ## Install FrankenPHP runtime for Symfony
-	docker compose exec app composer require runtime/frankenphp-symfony:^1 --no-interaction
+	$(COMPOSE_DEV) exec app composer require runtime/frankenphp-symfony:^1 --no-interaction
 
 warm: ## warm var and autoload
-	docker compose exec app sh -lc 'mkdir -p var/cache var/log && chmod -R 777 var' && docker compose exec app composer dump-autoload -o -n && docker compose exec app php bin/console cache:clear
+	$(COMPOSE_DEV) exec app sh -lc 'mkdir -p var/cache var/log && chmod -R 777 var' && $(COMPOSE_DEV) exec app composer dump-autoload -o -n && $(COMPOSE_DEV) exec app php bin/console cache:clear
 
 ps: ## verifying started container
-	docker compose ps
+	$(COMPOSE_DEV) ps
 
 monitoring-up: ## Start monitoring stack (Netdata + Uptime Kuma)
-	docker compose --profile monitoring up -d netdata uptime-kuma
+	$(COMPOSE_DEV) --profile monitoring up -d netdata uptime-kuma
 
 monitoring-logs: ## Tail monitoring logs
-	docker compose --profile monitoring logs -f netdata uptime-kuma
+	$(COMPOSE_DEV) --profile monitoring logs -f netdata uptime-kuma
 
 monitoring-down: ## Stop monitoring stack
-	docker compose --profile monitoring stop netdata uptime-kuma
+	$(COMPOSE_DEV) --profile monitoring stop netdata uptime-kuma
 
 ops-lint: ## Bash syntax check for ops scripts
 	find ops -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
