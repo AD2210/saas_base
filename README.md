@@ -43,7 +43,13 @@ Use it as a base for multi-tenant projects with DB-per-tenant.
 2) Access local dashboards:
    - Netdata: `http://127.0.0.1:19999`
    - Uptime Kuma: `http://127.0.0.1:3001`
-3) Configure optional links in admin:
+3) Configure optional links in admin.
+   In production behind the monitoring proxy:
+   ```dotenv
+   NETDATA_PUBLIC_URL=https://monitor.dsn-dev.com/netdata
+   UPTIME_KUMA_PUBLIC_URL=https://monitor.dsn-dev.com/uptime
+   ```
+   In local dev, you can still use:
    ```dotenv
    NETDATA_PUBLIC_URL=http://127.0.0.1:19999
    UPTIME_KUMA_PUBLIC_URL=http://127.0.0.1:3001
@@ -86,7 +92,7 @@ Local Docker note:
 
 ## Debug routes policy
 1) Debug endpoints use `/debug/*` prefix.
-2) Debug routes are loaded only in `dev`, `test`, `beta` environments.
+2) Debug routes are loaded only in `dev` and `test` in the current deployment model.
 3) Access is restricted with HTTP Basic (`ROLE_SUPER_ADMIN`).
 4) Production artifact excludes debug routes/controllers and fixtures.
 

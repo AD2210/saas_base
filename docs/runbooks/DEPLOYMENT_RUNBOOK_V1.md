@@ -28,10 +28,18 @@ EN: Provide an executable, idempotent and auditable baseline for hardening, depl
    cp ops/config/server.env.example ops/config/server.env
    cp ops/config/backup.env.example ops/config/backup.env
    ```
-2. Adapter `server.env` par environnement (`dev`, `beta`, `prod`).
-   - `DEPLOY_PROFILE=beta` pour beta/dev
-   - `DEPLOY_PROFILE=prod` pour prod (active les exclusions debug/fixtures supplémentaires)
-3. Créer la clé de chiffrement backup:
+2. Adapter `server.env` pour l'environnement déployé.
+   - `DEPLOY_PROFILE=prod`
+   - `SERVER_NAME=demo.dsn-dev.com`
+   - `BASE_URI=https://demo.dsn-dev.com`
+   - `CHILD_APP_VAULT_API_URL=https://secret-vault.dsn-dev.com`
+   - `CHILD_APP_VAULT_LOGIN_URL=https://secret-vault.dsn-dev.com/login`
+   - `CHILD_APP_VAULT_API_TOKEN=<même token que CHILD_APP_PROVISIONING_TOKEN côté vault>`
+3. Convention de répertoire:
+   - app mère: `/srv/saas/app`
+   - releases internes: `/srv/saas/releases`
+   - le choix de la version à déployer reste côté GitHub Actions, `current/app` ne sert qu'au switch atomique côté serveur
+4. Créer la clé de chiffrement backup:
    ```bash
    sudo install -d -m 0700 /etc/saas
    sudo sh -c "openssl rand -hex 32 > /etc/saas/backup.key"
@@ -44,14 +52,18 @@ EN: Provide an executable, idempotent and auditable baseline for hardening, depl
    ```bash
    sudo ops/server/hardening.sh ops/config/server.env
    ```
+   Si le hardening SSH/fail2ban/UFW est déjà géré hors repo, cette étape peut être ignorée.
 2. Services systemd stack (auto restart + healthcheck + reboot hebdo):
    ```bash
    sudo ops/server/install_systemd_units.sh ops/config/server.env
    ```
-3. Monitoring proxy (optionnel mais recommandé en beta/prod):
+3. Monitoring proxy (optionnel mais recommandé):
    ```bash
    sudo ops/server/configure_monitoring_proxy.sh ops/config/server.env
    ```
+   Variables publiques de l'admin mère:
+   - `NETDATA_PUBLIC_URL=https://monitor.dsn-dev.com/netdata`
+   - `UPTIME_KUMA_PUBLIC_URL=https://monitor.dsn-dev.com/uptime`
 4. Backup automatique:
    ```bash
    sudo ops/server/install_backup_timer.sh ops/config/backup.env
@@ -72,6 +84,26 @@ EN: Provide an executable, idempotent and auditable baseline for hardening, depl
 Politique d’artefact:
 1. Beta: inclut les routes debug (accès protégé).
 2. Prod: exclut `src/Debug`, `config/routes/debug.yaml`, `src/DataFixtures`, `public/test.php`, `tests`.
+
+## 5bis) Mapping domaines
+
+- app mère: `demo.dsn-dev.com`
+- app vault: `secret-vault.dsn-dev.com`
+
+Pour les prochaines apps filles, garder le même modèle:
+1. un dépôt dédié,
+2. un sous-domaine dédié,
+3. un `APP_BASE_DIR` dédié sur le serveur,
+4. la même convention de secrets GitHub `PROD_*` repo par repo,
+5. un triplet de variables dans `server.env` de la mère: `CHILD_APP_<KEY>_API_URL`, `CHILD_APP_<KEY>_LOGIN_URL`, `CHILD_APP_<KEY>_API_TOKEN`,
+6. une entrée correspondante dans `config/packages/child_apps.yaml`,
+7. un `SERVER_NAME` et un `BASE_URI` dédiés par app.
+
+Convention recommandée:
+1. clé applicative en minuscules, stable, sans espaces: `vault`, `ops`, `crm`
+2. sous-domaine miroir: `secret-vault.dsn-dev.com`, `ops.dsn-dev.com`, `crm.dsn-dev.com`
+3. le `LOGIN_URL` reste public, l'`API_URL` peut rester public ou devenir privé si les apps partagent un réseau interne.
+4. le répertoire applicatif publié reste `/srv/<app>/app`, même si les releases physiques sont stockées dans `/srv/<app>/releases`.
 
 ## 6) Rollback
 
@@ -98,6 +130,22 @@ Politique d’artefact:
 3. Timer backup actif: `systemctl status saas-db-backup.timer`.
 4. Timer reboot actif: `systemctl status saas-weekly-reboot.timer`.
 5. Netdata/Uptime Kuma exposés uniquement via proxy + auth.
+
+## 8bis) Monitoring
+
+Sous-domaine dédié recommandé si:
+1. tu veux accéder au monitoring depuis l'extérieur,
+2. tu veux isoler proprement l'authentification,
+3. tu veux éviter de mélanger app métier et observabilité.
+
+Configuration retenue:
+1. sous-domaine: `monitor.dsn-dev.com`
+2. Netdata: `https://monitor.dsn-dev.com/netdata`
+3. Uptime Kuma: `https://monitor.dsn-dev.com/uptime`
+
+Pas obligatoire si:
+1. le monitoring reste privé via VPN/Tailscale,
+2. ou accessible seulement en loopback/reverse proxy d'admin.
 
 ## 9) Notes de sécurité
 

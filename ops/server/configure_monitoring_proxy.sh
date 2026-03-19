@@ -15,14 +15,14 @@ else
     exit 1
 fi
 
-MONITORING_DOMAIN="${MONITORING_DOMAIN:-}"
+MONITORING_SERVER_NAME="${MONITORING_SERVER_NAME:-${MONITORING_DOMAIN:-}}"
 MONITORING_BASIC_AUTH_USER="${MONITORING_BASIC_AUTH_USER:-ops}"
 MONITORING_BASIC_AUTH_PASSWORD_HASH="${MONITORING_BASIC_AUTH_PASSWORD_HASH:-}"
 NETDATA_UPSTREAM="${NETDATA_UPSTREAM:-127.0.0.1:19999}"
 UPTIME_KUMA_UPSTREAM="${UPTIME_KUMA_UPSTREAM:-127.0.0.1:3001}"
 
 require_monitoring_env() {
-    require_env MONITORING_DOMAIN
+    require_env MONITORING_SERVER_NAME
     require_env MONITORING_BASIC_AUTH_PASSWORD_HASH
 
     if [[ "${MONITORING_BASIC_AUTH_PASSWORD_HASH}" != '$2a$'* && "${MONITORING_BASIC_AUTH_PASSWORD_HASH}" != '$2y$'* && "${MONITORING_BASIC_AUTH_PASSWORD_HASH}" != '$argon2'* ]]; then
@@ -55,7 +55,7 @@ write_monitoring_snippet() {
 # Managed by ops/server/configure_monitoring_proxy.sh
 # WHY (FR): Monitoring non exposé publiquement sans authentification.
 # WHY (EN): Monitoring endpoints must stay protected behind auth.
-https://${MONITORING_DOMAIN} {
+https://${MONITORING_SERVER_NAME} {
     @netdata path /netdata /netdata*
     handle @netdata {
         basicauth {
