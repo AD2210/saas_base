@@ -11,6 +11,7 @@ use App\Infrastructure\Provisioning\OnboardingTokenManager;
 use App\Infrastructure\Provisioning\TenantProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 
@@ -23,6 +24,8 @@ final readonly class DemoRequestManager
         private ChildAppCatalog $childAppCatalog,
         private MailerInterface $mailer,
         private LoggerInterface $logger,
+        #[Autowire('%env(string:MAILER_FROM)%')]
+        private string $mailerFrom,
     ) {
     }
 
@@ -80,7 +83,7 @@ final readonly class DemoRequestManager
     private function sendOnboardingMail(string $email, string $firstName, string $childAppName, string $onboardingUrl): void
     {
         $mail = (new Email())
-            ->from('no-reply@dsn-dev.com')
+            ->from($this->mailerFrom)
             ->to($email)
             ->subject(sprintf('Activation de votre demo %s', $childAppName))
             ->text(sprintf(

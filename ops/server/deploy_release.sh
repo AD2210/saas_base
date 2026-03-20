@@ -92,6 +92,7 @@ render_runtime_env() {
     append_runtime_var "${runtime_file}" "DATABASE_URL" "${DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8}"
     append_runtime_var "${runtime_file}" "MESSENGER_TRANSPORT_DSN" "${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}"
     append_runtime_var "${runtime_file}" "MAILER_DSN" "${MAILER_DSN:-null://null}"
+    append_runtime_var "${runtime_file}" "MAILER_FROM" "${MAILER_FROM:-noreply@dsn-dev.com}"
     append_runtime_var "${runtime_file}" "DEFAULT_CHILD_APP_KEY" "${DEFAULT_CHILD_APP_KEY:-vault}"
     append_runtime_var "${runtime_file}" "NETDATA_PUBLIC_URL" "${NETDATA_PUBLIC_URL:-}"
     append_runtime_var "${runtime_file}" "UPTIME_KUMA_PUBLIC_URL" "${UPTIME_KUMA_PUBLIC_URL:-}"
