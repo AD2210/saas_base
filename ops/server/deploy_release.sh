@@ -7,14 +7,23 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 init_logging
 setup_error_trap
 
-ENV_FILE="${SCRIPT_DIR}/../config/server.env"
-if [[ $# -gt 0 && -f "$1" ]]; then
+ENV_FILE="${DEPLOY_ENV_FILE:-${SCRIPT_DIR}/../config/server.env}"
+ENV_FILE_EXPLICITLY_SET="false"
+if [[ -n "${DEPLOY_ENV_FILE:-}" ]]; then
+    ENV_FILE_EXPLICITLY_SET="true"
+fi
+
+if [[ $# -gt 0 ]]; then
     ENV_FILE="$1"
+    ENV_FILE_EXPLICITLY_SET="true"
     shift
 fi
 
 if [[ -f "${ENV_FILE}" ]]; then
     load_env_file "${ENV_FILE}"
+elif [[ "${ENV_FILE_EXPLICITLY_SET}" == "true" ]]; then
+    log_error "Env file not found: ${ENV_FILE}"
+    exit 1
 else
     log_warn "No env file provided. Using script defaults."
 fi
