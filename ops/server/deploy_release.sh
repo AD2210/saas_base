@@ -122,7 +122,11 @@ render_runtime_env() {
 
     : > "${runtime_file}"
 
-    database_url="$(build_postgres_database_url)"
+    if [[ -n "${DATABASE_URL:-}" ]]; then
+        database_url="${DATABASE_URL}"
+    else
+        database_url="$(build_postgres_database_url)"
+    fi
 
     append_runtime_var "${runtime_file}" "APP_ENV" "${APP_ENV:-prod}"
     append_runtime_var "${runtime_file}" "APP_DEBUG" "${APP_DEBUG:-0}"
