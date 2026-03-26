@@ -30,6 +30,9 @@ final readonly class RegisterController
     public function __invoke(Request $request): JsonResponse
     {
         $payload = $this->extractInput($request);
+        $childApp = null;
+        $demoRequest = null;
+
         $errors = $this->validate($payload);
         if ([] !== $errors) {
             return new JsonResponse(['status' => 'invalid', 'errors' => $errors], 422);
@@ -72,6 +75,13 @@ final readonly class RegisterController
                 'error' => $exception->getMessage(),
             ]);
 
+            return new JsonResponse([
+                'status' => 'failed',
+                'error' => 'demo provisioning failed, please retry later',
+            ], 503);
+        }
+
+        if (!$demoRequest instanceof DemoRequest) {
             return new JsonResponse([
                 'status' => 'failed',
                 'error' => 'demo provisioning failed, please retry later',

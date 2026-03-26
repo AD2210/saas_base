@@ -112,7 +112,7 @@ final readonly class ChildAppProfile
     {
         $declarations = [];
         foreach ($this->theme as $name => $value) {
-            if (!is_string($name) || !is_scalar($value)) {
+            if (!is_scalar($value)) {
                 continue;
             }
 

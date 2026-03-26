@@ -330,7 +330,7 @@ final class OnboardingControllerTest extends TestCase
                     'password_errors' => isset($parameters['password_errors']) && is_array($parameters['password_errors'])
                         ? $parameters['password_errors']
                         : [],
-                    'child_app_login_url' => isset($parameters['child_app_login_url']) && (is_string($parameters['child_app_login_url']) || null === $parameters['child_app_login_url'])
+                    'child_app_login_url' => array_key_exists('child_app_login_url', $parameters) && (is_string($parameters['child_app_login_url']) || null === $parameters['child_app_login_url'])
                         ? $parameters['child_app_login_url']
                         : null,
                 ], JSON_THROW_ON_ERROR);

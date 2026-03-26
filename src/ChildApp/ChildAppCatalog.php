@@ -17,14 +17,14 @@ final class ChildAppCatalog
      */
     public function __construct(private readonly array $config)
     {
-        foreach ($config['apps'] ?? [] as $key => $profileConfig) {
+        foreach ($config['apps'] as $key => $profileConfig) {
             $this->profiles[$key] = $this->hydrateProfile((string) $key, $profileConfig);
         }
     }
 
     public function getDefault(): ChildAppProfile
     {
-        $defaultKey = (string) ($this->config['default_key'] ?? '');
+        $defaultKey = $this->config['default_key'];
 
         return $this->getByKey($defaultKey);
     }
