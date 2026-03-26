@@ -94,6 +94,7 @@ jobs:
     env:
       PROD_PORT: ${{ secrets.PROD_PORT }}
       PROD_DEPLOY_ENV_FILE: ${{ secrets.PROD_DEPLOY_ENV_FILE }}
+      PROD_KNOWN_HOSTS: ${{ secrets.PROD_KNOWN_HOSTS }}
     steps:
       - name: Validate secrets
         run: |
@@ -149,8 +150,10 @@ jobs:
             echo "::error::Invalid PROD_PORT value: ${PORT}"
             exit 1
           fi
-          if ! ssh-keyscan -T 10 -p "${PORT}" "${HOST}" >> ~/.ssh/known_hosts 2>/dev/null; then
-            echo "::error::ssh-keyscan failed for ${HOST}:${PORT}"
+          if [ -n "${PROD_KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${PROD_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          elif ! ssh-keyscan -T 10 -p "${PORT}" "${HOST}" >> ~/.ssh/known_hosts 2>/dev/null; then
+            echo "::error::ssh-keyscan failed for ${HOST}:${PORT}. Set PROD_KNOWN_HOSTS secret or open SSH access from GitHub runners."
             exit 1
           fi
           chmod 600 ~/.ssh/known_hosts
