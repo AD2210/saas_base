@@ -141,8 +141,19 @@ jobs:
 
       - name: Add server to known_hosts
         run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           PORT="${PROD_PORT:-22}"
-          ssh-keyscan -p "${PORT}" "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+          HOST="${{ secrets.PROD_HOST }}"
+          if ! [[ "${PORT}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PROD_PORT value: ${PORT}"
+            exit 1
+          fi
+          if ! ssh-keyscan -T 10 -p "${PORT}" "${HOST}" >> ~/.ssh/known_hosts 2>/dev/null; then
+            echo "::error::ssh-keyscan failed for ${HOST}:${PORT}"
+            exit 1
+          fi
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Upload artifact
         run: |
