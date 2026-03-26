@@ -14,6 +14,13 @@ timestamp_utc() {
 }
 
 init_logging() {
+    if mkdir -p "${OPS_LOG_DIR}" 2>/dev/null && touch "${OPS_LOG_FILE}" 2>/dev/null; then
+        return 0
+    fi
+
+    OPS_LOG_DIR="${TMPDIR:-/tmp}/saas"
+    OPS_LOG_FILE="${OPS_LOG_DIR}/ops.log"
+
     mkdir -p "${OPS_LOG_DIR}"
     touch "${OPS_LOG_FILE}"
 }
