@@ -1,5 +1,6 @@
 services:
   app:
+    image: ${IMAGES_PREFIX:-}saas-base-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -44,6 +45,7 @@ services:
       timeout: 10s
       retries: 5
   worker:
+    image: ${IMAGES_PREFIX:-}saas-base-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/php/Dockerfile

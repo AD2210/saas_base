@@ -1,187 +1,176 @@
-name: cd-prod
+name: CD Prod
 
 on:
-  push:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      ref:
-        description: Branch/tag to deploy
-        required: false
-        default: main
+
+env:
+  IMAGE_TAG: prod-${{ github.sha }}
 
 concurrency:
-  group: cd-prod
-  cancel-in-progress: false
+  group: prod-cd
+  cancel-in-progress: true
 
 jobs:
-  quality-gate:
+  build-and-deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    env:
-      APP_ENV: test
-      APP_SECRET: test-secret
-      APP_SECRETBOX_KEY: d13e60724269fb0aeaccf241a81b14387480f2e8b42f3669f10ac3bc2581396a
-      APP_ADMIN_PASSWORD: test-admin-password
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/saas_base_main_test?serverVersion=16&charset=utf8
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: saas_base_main_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Resolve ref
-        id: resolve_ref
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.ref }}" ]; then
-            echo "ref=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.resolve_ref.outputs.ref }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          php-version: '8.5'
-          extensions: mbstring, intl, pdo_pgsql, sodium, xml
-          coverage: none
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
-      - name: Cache Composer
-        uses: actions/cache@v4
+      - name: Set image name
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          OWNER="$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          REPO_NAME="${{ github.event.repository.name }}"
+          REPO_NAME="$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_NAME=ghcr.io/${OWNER}/${REPO_NAME}/saas-base-app" >> "$GITHUB_ENV"
+          echo "IMAGES_PREFIX=ghcr.io/${OWNER}/${REPO_NAME}/" >> "$GITHUB_ENV"
+
+      - name: Build and push production image
+        id: build_push
+        uses: docker/build-push-action@v6
         with:
-          path: ~/.composer/cache
-          key: composer-8.5-${{ hashFiles('**/composer.lock') }}
+          context: .
+          file: ./docker/php/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:prod
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=SaaS Base application image
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha || github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Lint YAML
-        run: php bin/console lint:yaml config --parse-tags
-
-      - name: Lint container
-        run: php bin/console lint:container --env=dev
-
-      - name: Coding style (PHP-CS-Fixer)
-        run: composer qa:cs-fixer
-
-      - name: Coding style (PHPCS)
-        run: composer qa:phpcs
-
-      - name: Static analysis (PHPStan)
-        run: composer qa:phpstan
-
-      - name: Tests
-        run: vendor/bin/phpunit --testsuite "Project Test Suite"
-
-  deploy-prod:
-    runs-on: ubuntu-latest
-    needs: quality-gate
-    environment: production
-    env:
-      PROD_PORT: ${{ secrets.PROD_PORT }}
-      PROD_DEPLOY_ENV_FILE: ${{ secrets.PROD_DEPLOY_ENV_FILE }}
-      PROD_KNOWN_HOSTS: ${{ secrets.PROD_KNOWN_HOSTS }}
-    steps:
-      - name: Validate secrets
+      - name: Print pushed digest
         run: |
-          test -n "${{ secrets.PROD_HOST }}"
-          test -n "${{ secrets.PROD_USER }}"
-          test -n "${{ secrets.PROD_SSH_KEY }}"
+          echo "Pushed digest: ${{ steps.build_push.outputs.digest }}"
 
-      - name: Resolve ref
-        id: resolve_ref
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.ref }}" ]; then
-            echo "ref=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Copy compose files to VPS
+        uses: appleboy/scp-action@v0.1.7
         with:
-          ref: ${{ steps.resolve_ref.outputs.ref }}
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          source: "docker-compose.yml,compose.prod.yaml"
+          target: "${{ secrets.PROD_PATH }}"
+          overwrite: true
 
-      - name: Build release artifact
-        run: |
-          tar \
-            --exclude-vcs \
-            --exclude='./.env' \
-            --exclude='./.env.dev' \
-            --exclude='./.env.test' \
-            --exclude='./vendor' \
-            --exclude='./var' \
-            --exclude='./tests' \
-            --exclude='./docs' \
-            --exclude='./.idea' \
-            --exclude='./docker-compose.dev.yml' \
-            --exclude='./src/Debug' \
-            --exclude='./src/DataFixtures' \
-            --exclude='./config/routes/debug.yaml' \
-            --exclude='./public/test.php' \
-            -czf "/tmp/saas-release-${GITHUB_SHA}.tar.gz" .
-
-      - name: Configure SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Deploy to Production
+        uses: appleboy/ssh-action@v1.2.0
         with:
-          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
 
-      - name: Add server to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          PORT="${PROD_PORT:-22}"
-          HOST="${{ secrets.PROD_HOST }}"
-          if ! [[ "${PORT}" =~ ^[0-9]+$ ]]; then
-            echo "::error::Invalid PROD_PORT value: ${PORT}"
-            exit 1
-          fi
-          if [ -n "${PROD_KNOWN_HOSTS}" ]; then
-            printf '%s\n' "${PROD_KNOWN_HOSTS}" > ~/.ssh/known_hosts
-          elif ! ssh-keyscan -T 10 -p "${PORT}" "${HOST}" >> ~/.ssh/known_hosts 2>/dev/null; then
-            echo "::error::ssh-keyscan failed for ${HOST}:${PORT}. Set PROD_KNOWN_HOSTS secret or open SSH access from GitHub runners."
-            exit 1
-          fi
-          chmod 600 ~/.ssh/known_hosts
+            GHCR_USER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+            GHCR_REPO="$(echo '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')"
+            APP_PATH='${{ secrets.PROD_PATH }}'
 
-      - name: Upload artifact
-        run: |
-          PORT="${PROD_PORT:-22}"
-          scp -P "${PORT}" \
-            "/tmp/saas-release-${GITHUB_SHA}.tar.gz" \
-            "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/tmp/saas-release-${GITHUB_SHA}.tar.gz"
+            echo "Login to GHCR on VPS"
+            echo '${{ github.token }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
 
-      - name: Deploy on production server
-        run: |
-          PORT="${PROD_PORT:-22}"
-          DEPLOY_ENV_FILE="${PROD_DEPLOY_ENV_FILE:-/srv/saas/app/.env}"
-          ssh -p "${PORT}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "DEPLOY_ENV_FILE='${DEPLOY_ENV_FILE}' DEPLOY_PROFILE='prod' GITHUB_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
-          set -Eeuo pipefail
+            echo "Go to app directory"
+            cd "${APP_PATH}"
 
-          ARTIFACT="/tmp/saas-release-${GITHUB_SHA}.tar.gz"
-          WORK_DIR="/tmp/saas-deploy-${GITHUB_SHA}"
+            if [ ! -f .env ]; then
+              echo "Missing .env in ${APP_PATH}" >&2
+              exit 1
+            fi
 
-          rm -rf "${WORK_DIR}"
-          mkdir -p "${WORK_DIR}"
-          tar -xzf "${ARTIFACT}" -C "${WORK_DIR}"
+            export IMAGES_PREFIX="ghcr.io/${GHCR_USER}/${GHCR_REPO}/"
+            export IMAGE_TAG='prod'
 
-          chmod +x "${WORK_DIR}/ops/lib/common.sh" "${WORK_DIR}/ops/server/"*.sh
-          "${WORK_DIR}/ops/server/deploy_release.sh" "${DEPLOY_ENV_FILE}" "${WORK_DIR}"
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD="docker compose"
+            else
+              echo "Docker Compose v2 is required on the server (command: docker compose)." >&2
+              exit 1
+            fi
 
-          rm -rf "${WORK_DIR}" "${ARTIFACT}"
-          REMOTE
+            PULL_OUTPUT="$(docker pull "ghcr.io/${GHCR_USER}/${GHCR_REPO}/saas-base-app:prod")"
+            echo "${PULL_OUTPUT}"
+            PULLED_DIGEST="$(printf '%s\n' "${PULL_OUTPUT}" | sed -n 's/^Digest: //p' | head -n 1)"
+            EXPECTED_DIGEST='${{ steps.build_push.outputs.digest }}'
+            echo "Expected digest: ${EXPECTED_DIGEST}"
+            echo "Pulled digest:   ${PULLED_DIGEST}"
+            if [ -z "${PULLED_DIGEST}" ]; then
+              echo "Unable to parse pulled digest from docker pull output." >&2
+              exit 1
+            fi
+            if [ -n "${EXPECTED_DIGEST}" ] && [ "${PULLED_DIGEST}" != "${EXPECTED_DIGEST}" ]; then
+              echo "Digest mismatch for prod tag; aborting deployment." >&2
+              exit 1
+            fi
+
+            $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml pull app worker
+            $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml up -d --remove-orphans --force-recreate
+            $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml ps
+
+            echo "Wait for DB to be ready"
+            for i in $(seq 1 30); do
+              if $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml exec -T db sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$MAIN_DB_NAME"' >/dev/null 2>&1; then
+                echo "Database is ready."
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "Database not ready after 60s." >&2
+                $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml ps
+                exit 1
+              fi
+              sleep 2
+            done
+
+            echo "Wait for app container to be healthy"
+            for i in $(seq 1 60); do
+              APP_CID="$($COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml ps -q app)"
+              APP_STATE=""
+              if [ -n "$APP_CID" ]; then
+                APP_STATE="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$APP_CID" 2>/dev/null || true)"
+              fi
+              if [ "$APP_STATE" = "healthy" ] || [ "$APP_STATE" = "running" ]; then
+                echo "App container is $APP_STATE."
+                break
+              fi
+              if [ "$i" -eq 60 ]; then
+                echo "App container is not healthy after 120s (state=$APP_STATE)." >&2
+                $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml ps
+                exit 1
+              fi
+              sleep 2
+            done
+
+            echo "Run migrations"
+            $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml exec -T app php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+
+            echo "Prune old images (safe)"
+            docker image prune -f || true

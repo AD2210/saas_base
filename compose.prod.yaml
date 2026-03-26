@@ -1,0 +1,6 @@
+services:
+  app:
+    pull_policy: always
+
+  worker:
+    pull_policy: always
