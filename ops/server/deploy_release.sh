@@ -122,10 +122,13 @@ render_runtime_env() {
 
     : > "${runtime_file}"
 
-    if [[ -n "${DATABASE_URL:-}" ]]; then
+    if [[ -n "${POSTGRES_PASSWORD:-}" || -n "${POSTGRES_USER:-}" || -n "${MAIN_DB_NAME:-}" ]]; then
+        database_url="$(build_postgres_database_url)"
+    elif [[ -n "${DATABASE_URL:-}" ]]; then
         database_url="${DATABASE_URL}"
     else
-        database_url="$(build_postgres_database_url)"
+        log_error "Missing database configuration. Define DATABASE_URL or POSTGRES_* values in the deployment env file."
+        exit 1
     fi
 
     append_runtime_var "${runtime_file}" "APP_ENV" "${APP_ENV:-prod}"
