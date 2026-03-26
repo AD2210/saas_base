@@ -15,17 +15,15 @@ final class LandingPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(1, $crawler->filter('form[data-demo-form]')->count());
-        self::assertStringContainsString('Request a vault demo', $client->getResponse()->getContent());
+        self::assertStringContainsString('Demandez votre démo de coffre-fort', $client->getResponse()->getContent());
         self::assertSame('vault', $crawler->filter('input[name="child_app_key"]')->attr('value'));
     }
 
-    public function testLandingPageLoadsSpecificChildAppTheme(): void
+    public function testUnknownChildAppPageReturnsNotFound(): void
     {
         $client = static::createClient();
-        $crawler = $client->request('GET', '/demo/ops');
+        $client->request('GET', '/demo/ops');
 
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Deploy Ops Center', $client->getResponse()->getContent());
-        self::assertSame('ops', $crawler->filter('input[name="child_app_key"]')->attr('value'));
+        self::assertResponseStatusCodeSame(404);
     }
 }

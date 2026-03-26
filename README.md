@@ -70,7 +70,7 @@ php bin/console cache:warmup --env=dev
 1) Landing form posts to `/api/demo-requests`.
 2) Backend provisions tenant + demo request, then queues onboarding email through Messenger.
 3) Onboarding link points to `/onboarding/set-password?token=...` with one-time token semantics.
-4) On password submit, mother app can sync tenant admin into child app contract `tenant-admin-provisioning:v1`.
+4) On password submit, mother app syncs the tenant admin into the vault child app contract `tenant-admin-provisioning:v1`.
 5) Child app catalog lives in `config/packages/child_apps.yaml`.
 6) Each demo request carries a `child_app_key`, so `/demo/{childAppKey}` can load a dedicated copy/theme and route onboarding to the matching child app.
 7) Contract details: `docs/CHILD_APP_CONTRACT_V1.md`
@@ -84,9 +84,6 @@ Local Docker note:
   - `CHILD_APP_VAULT_API_URL=http://child-app:8000`
   - `CHILD_APP_VAULT_LOGIN_URL=http://127.0.0.1:8090/login`
   - `CHILD_APP_VAULT_API_TOKEN=...`
-  - `CHILD_APP_OPS_API_URL=http://child-app:8000`
-  - `CHILD_APP_OPS_LOGIN_URL=http://127.0.0.1:8090/login`
-  - `CHILD_APP_OPS_API_TOKEN=...`
 - access the mother app through `http://127.0.0.1:8088`
 - do not use `symfony serve` for this stack: it bypasses the Docker DB settings and can fail against `127.0.0.1:5432`
 
@@ -103,6 +100,7 @@ The repository now includes operational scripts for server setup and deployment:
 - Docker baseline: `ops/server/install_docker.sh`
 - Systemd units (stack restart, healthcheck, weekly reboot): `ops/server/install_systemd_units.sh`
 - Monitoring reverse proxy + auth: `ops/server/configure_monitoring_proxy.sh`
+- Monitoring credentials generation: `ops/server/generate_monitoring_credentials.sh`
 - Encrypted DB backups + rotation + rclone: `ops/server/backup_db.sh`
 - Backup timer install: `ops/server/install_backup_timer.sh`
 - Release deployment: `ops/server/deploy_release.sh`

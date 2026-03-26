@@ -8,12 +8,15 @@ use App\ChildApp\ChildAppCatalog;
 use App\Controller\RegisterController;
 use App\Domain\Demo\DemoRequestManager;
 use App\Entity\Contact;
+use App\Entity\DemoRequest;
 use App\Entity\Tenant;
 use App\Infrastructure\Provisioning\DbOrchestrator;
 use App\Infrastructure\Provisioning\OnboardingTokenManager;
 use App\Infrastructure\Provisioning\SecretBox;
 use App\Infrastructure\Provisioning\TenantProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -21,6 +24,7 @@ use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class RegisterControllerTest extends TestCase
@@ -29,7 +33,7 @@ final class RegisterControllerTest extends TestCase
 
     public function testInvokeReturnsValidationErrorsWhenRequiredFieldsAreMissing(): void
     {
-        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger(), $this->urlGenerator());
 
         $response = $controller($this->jsonRequest([]));
         $payload = $this->decodeJsonResponse($response->getContent() ?: '{}');
@@ -42,7 +46,7 @@ final class RegisterControllerTest extends TestCase
 
     public function testInvokeReturnsValidationErrorWhenBirthDateFormatIsInvalid(): void
     {
-        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger(), $this->urlGenerator());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -68,7 +72,7 @@ final class RegisterControllerTest extends TestCase
                 return str_contains((string) $email->getTextBody(), '/onboarding/set-password?token=');
             }));
 
-        $controller = new RegisterController($this->buildDemoRequestManager(false, $mailer), $this->childAppCatalog(), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false, $mailer), $this->childAppCatalog(), new NullLogger(), $this->urlGenerator());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -96,7 +100,7 @@ final class RegisterControllerTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects($this->never())->method('send');
 
-        $controller = new RegisterController($this->buildDemoRequestManager(true, $mailer), $this->childAppCatalog(), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(true, $mailer), $this->childAppCatalog(), new NullLogger(), $this->urlGenerator());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -116,7 +120,7 @@ final class RegisterControllerTest extends TestCase
 
     public function testInvokeRejectsUnknownChildAppKey(): void
     {
-        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger());
+        $controller = new RegisterController($this->buildDemoRequestManager(false), $this->childAppCatalog(), new NullLogger(), $this->urlGenerator());
 
         $response = $controller($this->jsonRequest([
             'email' => 'owner@example.com',
@@ -142,14 +146,32 @@ final class RegisterControllerTest extends TestCase
         $tenantRepository = $this->createMock(EntityRepository::class);
         $tenantRepository->method('findOneBy')->willReturn(null);
 
+        $query = $this->createMock(Query::class);
+        $query->method('getOneOrNullResult')->willReturn(null);
+
+        $queryBuilder = $this->createMock(QueryBuilder::class);
+        $queryBuilder->method('innerJoin')->willReturnSelf();
+        $queryBuilder->method('andWhere')->willReturnSelf();
+        $queryBuilder->method('setParameter')->willReturnSelf();
+        $queryBuilder->method('orderBy')->willReturnSelf();
+        $queryBuilder->method('setMaxResults')->willReturnSelf();
+        $queryBuilder->method('getQuery')->willReturn($query);
+
+        $demoRequestRepository = $this->createMock(EntityRepository::class);
+        $demoRequestRepository->method('createQueryBuilder')->with('demo_request')->willReturn($queryBuilder);
+
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getRepository')->willReturnCallback(static function (string $className) use ($contactRepository, $tenantRepository): EntityRepository {
+        $em->method('getRepository')->willReturnCallback(static function (string $className) use ($contactRepository, $tenantRepository, $demoRequestRepository): EntityRepository {
             if (Contact::class === $className) {
                 return $contactRepository;
             }
 
             if (Tenant::class === $className) {
                 return $tenantRepository;
+            }
+
+            if (DemoRequest::class === $className) {
+                return $demoRequestRepository;
             }
 
             throw new \RuntimeException(sprintf('Unexpected repository "%s".', $className));
@@ -180,6 +202,7 @@ final class RegisterControllerTest extends TestCase
             $this->childAppCatalog(),
             $mailer ?? $this->createMock(MailerInterface::class),
             new NullLogger(),
+            'noreply@example.com',
         );
     }
 
@@ -221,13 +244,15 @@ final class RegisterControllerTest extends TestCase
                     'login_url' => 'https://vault.example/login',
                     'api_token' => 'vault-token',
                 ],
-                'ops' => [
-                    'name' => 'Deploy Ops Center',
-                    'api_url' => 'https://ops.example',
-                    'login_url' => 'https://ops.example/login',
-                    'api_token' => 'ops-token',
-                ],
             ],
         ]);
+    }
+
+    private function urlGenerator(): UrlGeneratorInterface
+    {
+        $urlGenerator = $this->createStub(UrlGeneratorInterface::class);
+        $urlGenerator->method('generate')->willReturn('/api/demo-requests/resend-invitation');
+
+        return $urlGenerator;
     }
 }
