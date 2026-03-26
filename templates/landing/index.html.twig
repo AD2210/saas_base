@@ -1,28 +1,36 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}SaaS Multi-Tenant Starter{% endblock %}
+{% block title %}{{ child_app_profile.name }}{% endblock %}
 
 {% block body %}
     <main class="landing-page">
         <section class="hero">
             <div class="hero__copy">
-                <p class="hero__eyebrow">Symfony 7.4 · PHP 8.5 · PostgreSQL LTS</p>
-                <h1>Launch your tenant-ready SaaS in days, not months.</h1>
-                <p class="hero__lead">
-                    Base mère + provisioning + onboarding sécurisé. Le starter est prêt pour passer un produit en mode multi-tenant sans repartir de zéro.
-                </p>
+                <p class="hero__eyebrow">{{ child_app_profile.landingEyebrow }}</p>
+                <h1>{{ child_app_profile.landingTitle }}</h1>
+                <p class="hero__lead">{{ child_app_profile.landingLead }}</p>
                 <ul class="hero__facts">
-                    <li>Database-per-tenant</li>
-                    <li>Onboarding link chiffré (24h)</li>
-                    <li>Monitoring Netdata + Uptime Kuma</li>
+                    {% for fact in child_app_profile.landingFacts %}
+                        <li>{{ fact }}</li>
+                    {% endfor %}
                 </ul>
+
+                {% if child_app_profiles|length > 1 %}
+                    <nav class="hero__apps" aria-label="Available child apps">
+                        {% for profile in child_app_profiles %}
+                            {% set profileHref = profile.key == default_child_app_key ? path('app_landing') : path('app_landing_child_app', {childAppKey: profile.key}) %}
+                            <a href="{{ profileHref }}" class="hero__app-link{% if profile.key == child_app_profile.key %} hero__app-link--active{% endif %}">{{ profile.name }}</a>
+                        {% endfor %}
+                    </nav>
+                {% endif %}
             </div>
 
             <div class="hero__form-card">
-                <h2>Request a demo</h2>
-                <p class="hero__form-subtitle">Receive your onboarding link instantly and start your 30-day trial.</p>
+                <h2>{{ child_app_profile.formTitle }}</h2>
+                <p class="hero__form-subtitle">{{ child_app_profile.formSubtitle }}</p>
 
                 <form data-demo-form novalidate>
+                    <input type="hidden" name="child_app_key" value="{{ child_app_profile.key }}">
                     <div class="grid two">
                         <label>
                             <span>First name</span>
@@ -66,7 +74,7 @@
                         </label>
                     </div>
 
-                    <button type="submit" class="cta" data-submit-button>Start my demo</button>
+                    <button type="submit" class="cta" data-submit-button>{{ child_app_profile.submitLabel }}</button>
                 </form>
 
                 <div class="form-status" data-form-status aria-live="polite"></div>
@@ -74,4 +82,3 @@
         </section>
     </main>
 {% endblock %}
-

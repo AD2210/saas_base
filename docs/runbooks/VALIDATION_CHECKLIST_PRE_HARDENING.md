@@ -48,10 +48,10 @@ Scope: passe complète de validation avant hardening pré-prod
 
 | Check | Commande / Action | Résultat attendu | Statut |
 |---|---|---|---|
-| Variables contrat | `MAIN_CHILD_APP_API_URL`, `MAIN_CHILD_APP_API_TOKEN` | Config cohérente par env | `[X]` Variables présentes (vides en dev local) |
+| Variables contrat | `DEFAULT_CHILD_APP_KEY` + catalogue `config/packages/child_apps.yaml` | Config cohérente par env | `[X]` |
 | Comportement dev sans URL | URL vide en dev | Skip journalisé non bloquant | `[X]` (tests unitaires) |
 | Comportement prod/beta sans URL | URL vide en prod/beta | Échec explicite (pas de skip silencieux) | `[X]` (tests unitaires) |
-| Payload V1 | Vérifier payload envoyé | Champs requis `tenant_uuid`, `user_uuid`, `email`, etc. | `[X]` conforme implémentation/doc V1 |
+| Payload V1 | Vérifier payload envoyé | Champs requis `tenant_uuid`, `user_uuid`, `email`, etc. + contexte `child_app_key` | `[X]` conforme implémentation/doc V1 |
 | Idempotence côté app fille | Rejouer provisioning admin | Pas de duplication, réponse 2xx si état déjà atteint | `[ ]` À valider avec vraie app fille (non disponible localement) |
 
 ## 6) Back-office Admin (EasyAdmin)

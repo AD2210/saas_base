@@ -12,7 +12,7 @@
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </head>
-    <body>
+    <body{% if app_theme_style is defined and app_theme_style %} style="{{ app_theme_style }}"{% endif %}>
         {% block body %}{% endblock %}
     </body>
 </html>

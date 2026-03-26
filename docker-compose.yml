@@ -1,48 +1,93 @@
 services:
   app:
-    build: ./docker/php
-    env_file: .env
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
     environment:
-      APP_ENV: dev
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8"
+      SERVER_NAME: ${SERVER_NAME:-:80}
+      CHILD_APP_VAULT_SERVER_NAME: ${CHILD_APP_VAULT_SERVER_NAME:-secret-vault.dsn-dev.com}
+      CHILD_APP_VAULT_UPSTREAM: ${CHILD_APP_VAULT_UPSTREAM:-secret-vault-app:80}
+      APP_ENV: ${APP_ENV:-prod}
+      APP_DEBUG: ${APP_DEBUG:-0}
+      APP_SECRET: ${APP_SECRET:-change-me-app-secret}
+      APP_SECRETBOX_KEY: ${APP_SECRETBOX_KEY:-d13e60724269fb0aeaccf241a81b14387480f2e8b42f3669f10ac3bc2581396a}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-change-this-admin-password}
+      MAIN_DB_NAME: ${MAIN_DB_NAME:-saas_base_main}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/saas_base_main?serverVersion=16&charset=utf8}
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
+      MAILER_DSN: ${MAILER_DSN:-null://null}
+      MAILER_FROM: ${MAILER_FROM:-noreply@dsn-dev.com}
+      NETDATA_PUBLIC_URL: ${NETDATA_PUBLIC_URL:-}
+      UPTIME_KUMA_PUBLIC_URL: ${UPTIME_KUMA_PUBLIC_URL:-}
+      DEFAULT_CHILD_APP_KEY: ${DEFAULT_CHILD_APP_KEY:-vault}
+      CHILD_APP_VAULT_API_URL: ${CHILD_APP_VAULT_API_URL:-http://secret-vault-app}
+      CHILD_APP_VAULT_LOGIN_URL: ${CHILD_APP_VAULT_LOGIN_URL:-}
+      CHILD_APP_VAULT_API_TOKEN: ${CHILD_APP_VAULT_API_TOKEN:-}
     ports:
-      - "${APP_HTTP_PORT:-8088}:8080"
+      - "${APP_HTTP_PORT:-80}:80"
+      - "${APP_HTTPS_PORT:-443}:443"
+      - "${APP_HTTPS_PORT:-443}:443/udp"
     depends_on:
       - db
+    networks:
+      - default
+      - edge
     volumes:
-      - ./:/app:cached
-      - symfony_var:/app/var
-  worker:
-    build: ./docker/php
-    env_file: .env
-    environment:
-      APP_ENV: dev
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/${MAIN_DB_NAME:-saas_base_main}?serverVersion=16&charset=utf8"
-    depends_on:
-      - db
-    volumes:
-      - ./:/app:cached
-      - symfony_var:/app/var
-    command: [ "php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M" ]
+      - caddy_data:/data
+      - caddy_config:/config
     restart: unless-stopped
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV:-prod}
+      APP_DEBUG: ${APP_DEBUG:-0}
+      APP_SECRET: ${APP_SECRET:-change-me-app-secret}
+      APP_SECRETBOX_KEY: ${APP_SECRETBOX_KEY:-d13e60724269fb0aeaccf241a81b14387480f2e8b42f3669f10ac3bc2581396a}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-change-this-admin-password}
+      MAIN_DB_NAME: ${MAIN_DB_NAME:-saas_base_main}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/saas_base_main?serverVersion=16&charset=utf8}
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
+      MAILER_DSN: ${MAILER_DSN:-null://null}
+      MAILER_FROM: ${MAILER_FROM:-noreply@dsn-dev.com}
+      NETDATA_PUBLIC_URL: ${NETDATA_PUBLIC_URL:-}
+      UPTIME_KUMA_PUBLIC_URL: ${UPTIME_KUMA_PUBLIC_URL:-}
+      DEFAULT_CHILD_APP_KEY: ${DEFAULT_CHILD_APP_KEY:-vault}
+      CHILD_APP_VAULT_API_URL: ${CHILD_APP_VAULT_API_URL:-http://secret-vault-app}
+      CHILD_APP_VAULT_LOGIN_URL: ${CHILD_APP_VAULT_LOGIN_URL:-}
+      CHILD_APP_VAULT_API_TOKEN: ${CHILD_APP_VAULT_API_TOKEN:-}
+    depends_on:
+      - db
+    networks:
+      - default
+      - edge
+    command: [ "php", "bin/console", "messenger:consume", "async", "--time-limit=3600", "--memory-limit=256M" ]
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'messenger:consume'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_DB: "${MAIN_DB_NAME:-saas_base_main}"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d
-    ports:
-      - "${POSTGRES_PORT:-5442}:5432"
-  adminer:
-    image: adminer:4
-    depends_on: [db]
-    ports:
-      - "8089:8080"
+    restart: unless-stopped
   netdata:
     image: netdata/netdata:stable
     profiles: ["monitoring"]
@@ -56,6 +101,7 @@ services:
       - SYS_PTRACE
     security_opt:
       - apparmor=unconfined
+    restart: unless-stopped
   uptime-kuma:
     image: louislam/uptime-kuma:1
     profiles: ["monitoring"]
@@ -63,10 +109,17 @@ services:
       - "${UPTIME_KUMA_PORT:-3001}:3001"
     volumes:
       - uptime_kuma_data:/app/data
+    restart: unless-stopped
 volumes:
   pgdata:
-  symfony_var:
+  caddy_data:
+  caddy_config:
   netdata_config:
   netdata_lib:
   netdata_cache:
   uptime_kuma_data:
+
+networks:
+  edge:
+    external: true
+    name: ${SHARED_EDGE_NETWORK:-saas-edge}

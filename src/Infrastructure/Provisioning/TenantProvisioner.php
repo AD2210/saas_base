@@ -26,6 +26,7 @@ final class TenantProvisioner
         string $firstName = 'Tenant',
         string $lastName = 'Admin',
         ?string $slug = null,
+        string $childAppKey = 'vault',
     ): Tenant {
         $baseSlug = $slug ?? $company;
         $tenantSlug = $this->generateUniqueSlug($baseSlug);
@@ -36,6 +37,7 @@ final class TenantProvisioner
             adminEmail: $email,
             adminFirstName: $firstName,
             adminLastName: $lastName,
+            childAppKey: $childAppKey,
         );
 
         $this->em->persist($tenant);
@@ -44,6 +46,7 @@ final class TenantProvisioner
         $this->logger->info('tenant.account.created', [
             'tenant_uuid' => $tenant->getIdString(),
             'tenant_slug' => $tenant->getSlug(),
+            'child_app_key' => $tenant->getChildAppKey(),
             'email' => $email,
             'status' => $tenant->getStatus(),
         ]);

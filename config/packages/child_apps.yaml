@@ -1,0 +1,32 @@
+parameters:
+    app.child_apps:
+        default_key: '%env(string:DEFAULT_CHILD_APP_KEY)%'
+        apps:
+            vault:
+                name: 'Client Secrets Vault'
+                api_url: '%env(string:CHILD_APP_VAULT_API_URL)%'
+                login_url: '%env(string:CHILD_APP_VAULT_LOGIN_URL)%'
+                api_token: '%env(string:CHILD_APP_VAULT_API_TOKEN)%'
+                landing_eyebrow: 'Coffre fort de secrets clients'
+                landing_title: "Centraliser l'ensemble des secrets clients dans un même endroit."
+                landing_lead: "Configurez un coffre-fort sécurisé, invitez votre équipe et commencez à stocker les clés SSH, les identifiants et les secrets de production grâce à un processus d'intégration contrôlé."
+                landing_facts: ["Coffre-fort d'applications crypté", "Mot de passe + TOTP pour l'intégration", "Accès partagé pour l'équipe interne"]
+                form_title: 'Demandez votre démo de coffre-fort'
+                form_subtitle: "Recevez votre lien d'intégration, activez votre espace de travail et commencez à stocker les secrets immédiatement."
+                submit_label: 'Commencer ma démo de coffre-fort'
+                onboarding_eyebrow: 'Activation du coffre-fort'
+                onboarding_title: 'Create your vault password'
+                onboarding_lead: 'Choose a strong password to unlock your Client Secrets Vault workspace.'
+                theme:
+                    bg_top: '#eefbf5'
+                    bg_bottom: '#f6efe2'
+                    surface: 'rgba(255, 255, 255, 0.84)'
+                    surface_border: 'rgba(6, 95, 70, 0.18)'
+                    text_primary: '#052e2b'
+                    text_secondary: '#355955'
+                    accent: '#0f766e'
+                    accent_hover: '#115e59'
+                    ring: 'rgba(15, 118, 110, 0.24)'
+                    accent_secondary: '#14b8a6'
+                    glow_primary: 'rgba(16, 185, 129, 0.14)'
+                    glow_secondary: 'rgba(245, 158, 11, 0.16)'

@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+docs
+tests
+var/cache
+var/log
+vendor
+.env.runtime

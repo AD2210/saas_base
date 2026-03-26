@@ -30,7 +30,7 @@ final class TenantCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('Tenant')
             ->setEntityLabelInPlural('Tenants')
             ->setDefaultSort(['createdAt' => 'DESC'])
-            ->setSearchFields(['slug', 'name', 'adminEmail', 'status']);
+            ->setSearchFields(['slug', 'name', 'childAppKey', 'adminEmail', 'status']);
     }
 
     public function configureActions(Actions $actions): Actions
@@ -45,6 +45,7 @@ final class TenantCrudController extends AbstractCrudController
         yield IdField::new('id')->hideOnForm();
         yield TextField::new('slug');
         yield TextField::new('name');
+        yield TextField::new('childAppKey', 'Child App');
         yield TextField::new('adminEmail', 'Admin Email');
         yield TextField::new('adminFirstName', 'Admin First Name');
         yield TextField::new('adminLastName', 'Admin Last Name');

@@ -13,7 +13,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity]
 #[ORM\Table(name: 'tenant')]
 #[ORM\UniqueConstraint(name: 'uniq_tenant_slug', columns: ['slug'])]
-#[ORM\UniqueConstraint(name: 'uniq_tenant_admin_email', columns: ['admin_email'])]
+#[ORM\UniqueConstraint(name: 'uniq_tenant_app_admin_email', columns: ['child_app_key', 'admin_email'])]
 #[ORM\HasLifecycleCallbacks]
 class Tenant
 {
@@ -31,6 +31,9 @@ class Tenant
 
     #[ORM\Column(type: 'string', length: 160)]
     private string $name;
+
+    #[ORM\Column(type: 'string', length: 64, options: ['default' => 'vault'])]
+    private string $childAppKey;
 
     #[ORM\Column(type: 'string', length: 32)]
     private string $plan = 'starter';
@@ -72,9 +75,11 @@ class Tenant
         string $adminFirstName,
         string $adminLastName,
         ?Uuid $adminUserUuid = null,
+        string $childAppKey = 'vault',
     ) {
         $this->slug = self::sanitizeSlug($slug);
         $this->name = trim($name);
+        $this->childAppKey = self::sanitizeChildAppKey($childAppKey);
         $this->adminEmail = mb_strtolower(trim($adminEmail));
         $this->adminFirstName = trim($adminFirstName);
         $this->adminLastName = trim($adminLastName);
@@ -101,6 +106,18 @@ class Tenant
     public function setName(string $name): self
     {
         $this->name = trim($name);
+
+        return $this;
+    }
+
+    public function getChildAppKey(): string
+    {
+        return $this->childAppKey;
+    }
+
+    public function setChildAppKey(string $childAppKey): self
+    {
+        $this->childAppKey = self::sanitizeChildAppKey($childAppKey);
 
         return $this;
     }
@@ -241,5 +258,14 @@ class Tenant
         $normalized = trim($normalized, '-');
 
         return '' === $normalized ? 'tenant' : $normalized;
+    }
+
+    private static function sanitizeChildAppKey(string $childAppKey): string
+    {
+        $normalized = mb_strtolower(trim($childAppKey));
+        $normalized = (string) preg_replace('/[^a-z0-9-]+/', '-', $normalized);
+        $normalized = trim($normalized, '-');
+
+        return '' === $normalized ? 'vault' : $normalized;
     }
 }

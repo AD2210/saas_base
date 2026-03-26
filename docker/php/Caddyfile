@@ -3,7 +3,7 @@
     order php_server before file_server
 }
 
-:8080 {
+{$SERVER_NAME} {
     encode zstd gzip
     root * /app/public
 
@@ -14,4 +14,8 @@
 
     php_server
     file_server
+}
+
+{$CHILD_APP_VAULT_SERVER_NAME} {
+    reverse_proxy {$CHILD_APP_VAULT_UPSTREAM}
 }

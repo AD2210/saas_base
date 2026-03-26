@@ -112,3 +112,29 @@ write_file_if_changed() {
     install -D -m "${mode}" "${source_file}" "${target_file}"
     log_info "Updated ${target_file}"
 }
+
+resolve_compose_env_file() {
+    if [[ -n "${COMPOSE_ENV_FILE:-}" ]]; then
+        printf '%s\n' "${COMPOSE_ENV_FILE}"
+        return 0
+    fi
+
+    if [[ -f ".env.runtime" ]]; then
+        printf '%s/.env.runtime\n' "$(pwd)"
+        return 0
+    fi
+
+    printf '\n'
+}
+
+docker_compose() {
+    local env_file
+    env_file="$(resolve_compose_env_file)"
+
+    if [[ -n "${env_file}" ]]; then
+        docker compose --env-file "${env_file}" "$@"
+        return 0
+    fi
+
+    docker compose "$@"
+}

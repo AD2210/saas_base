@@ -22,7 +22,7 @@ fi
 ROLLBACK_TARGET="${1:-${ROLLBACK_TARGET:-}}"
 APP_BASE_DIR="${APP_BASE_DIR:-/srv/saas}"
 RELEASES_DIR="${RELEASES_DIR:-${APP_BASE_DIR}/releases}"
-CURRENT_LINK="${CURRENT_LINK:-${APP_BASE_DIR}/current}"
+CURRENT_LINK="${CURRENT_LINK:-${APP_BASE_DIR}/app}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1/healthz}"
 HEALTHCHECK_ATTEMPTS="${HEALTHCHECK_ATTEMPTS:-6}"
 HEALTHCHECK_SLEEP_SECONDS="${HEALTHCHECK_SLEEP_SECONDS:-5}"
@@ -78,8 +78,8 @@ restart_stack() {
 
     cd "${CURRENT_LINK}"
     log_info "Restarting stack in ${CURRENT_LINK}"
-    docker compose down
-    docker compose up -d --remove-orphans
+    docker_compose down
+    docker_compose up -d --remove-orphans
 }
 
 wait_for_health() {

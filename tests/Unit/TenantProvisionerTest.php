@@ -29,9 +29,10 @@ final class TenantProvisionerTest extends TestCase
         $em->expects($this->once())->method('flush');
 
         $provisioner = $this->buildProvisioner($em, $db);
-        $tenant = $provisioner->createTenantAccount(' OWNER@EXAMPLE.COM ', ' Acme Company ', ' Ada ', ' Lovelace ');
+        $tenant = $provisioner->createTenantAccount(' OWNER@EXAMPLE.COM ', ' Acme Company ', ' Ada ', ' Lovelace ', null, 'vault');
 
         self::assertSame('acme-company', $tenant->getSlug());
+        self::assertSame('vault', $tenant->getChildAppKey());
         self::assertSame('owner@example.com', $tenant->getAdminEmail());
         self::assertSame('Ada', $tenant->getAdminFirstName());
         self::assertSame('Lovelace', $tenant->getAdminLastName());

@@ -14,7 +14,7 @@ else
     log_warn "No env file provided. Using script defaults."
 fi
 
-APP_ROOT="${APP_ROOT:-/srv/saas/current}"
+APP_ROOT="${APP_ROOT:-/srv/saas/app}"
 STACK_REQUIRED_SERVICES="${STACK_REQUIRED_SERVICES:-app db}"
 STACK_HEALTHCHECK_URL="${STACK_HEALTHCHECK_URL:-http://127.0.0.1/healthz}"
 WEEKLY_REBOOT_ONCALENDAR="${WEEKLY_REBOOT_ONCALENDAR:-Sun *-*-* 04:30:00}"
@@ -58,6 +58,7 @@ install_healthcheck_environment() {
 APP_ROOT="${APP_ROOT}"
 STACK_REQUIRED_SERVICES="${STACK_REQUIRED_SERVICES}"
 STACK_HEALTHCHECK_URL="${STACK_HEALTHCHECK_URL}"
+COMPOSE_ENV_FILE="${APP_ROOT}/.env.runtime"
 CFG
 
     write_file_if_changed "${env_target}" "${temp_file}" "0644"
@@ -79,9 +80,10 @@ if [[ -f /etc/default/saas-stack-healthcheck ]]; then
     source /etc/default/saas-stack-healthcheck
 fi
 
-APP_ROOT="${APP_ROOT:-/srv/saas/current}"
+APP_ROOT="${APP_ROOT:-/srv/saas/app}"
 STACK_REQUIRED_SERVICES="${STACK_REQUIRED_SERVICES:-app db}"
 STACK_HEALTHCHECK_URL="${STACK_HEALTHCHECK_URL:-http://127.0.0.1/healthz}"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-${APP_ROOT}/.env.runtime}"
 LOG_FILE="/var/log/saas/saas-stack-healthcheck.log"
 
 log() {
@@ -91,16 +93,29 @@ log() {
 mkdir -p /var/log/saas
 
 if [[ ! -d "${APP_ROOT}" ]]; then
-    log "App root not found: ${APP_ROOT}"
-    exit 1
+    log "App root not found yet: ${APP_ROOT}. Skipping healthcheck."
+    exit 0
 fi
 
 cd "${APP_ROOT}"
 
-running_services="$(docker compose ps --status running --services || true)"
-missing_count=0
+if [[ ! -f docker-compose.yml ]]; then
+    log "Compose file not found yet in ${APP_ROOT}. Skipping healthcheck."
+    exit 0
+fi
 
-for required_service in ${STACK_REQUIRED_SERVICES}; do
+compose_args=()
+if [[ -f "${COMPOSE_ENV_FILE}" ]]; then
+    compose_args+=(--env-file "${COMPOSE_ENV_FILE}")
+fi
+
+running_services="$(docker compose "${compose_args[@]}" ps --status running --services || true)"
+missing_count=0
+required_services=()
+
+IFS=' ' read -r -a required_services <<< "${STACK_REQUIRED_SERVICES}"
+
+for required_service in "${required_services[@]}"; do
     if ! grep -qx "${required_service}" <<< "${running_services}"; then
         log "Missing service detected: ${required_service}"
         missing_count=$((missing_count + 1))
@@ -109,13 +124,13 @@ done
 
 if [[ "${missing_count}" -gt 0 ]]; then
     log "Repairing stack via docker compose up -d --remove-orphans"
-    docker compose up -d --remove-orphans
+    docker compose "${compose_args[@]}" up -d --remove-orphans
 fi
 
 if ! curl -fsS --max-time 10 "${STACK_HEALTHCHECK_URL}" >/dev/null; then
     log "Health endpoint failed: ${STACK_HEALTHCHECK_URL}. Restarting stack."
-    docker compose down
-    docker compose up -d --remove-orphans
+    docker compose "${compose_args[@]}" down
+    docker compose "${compose_args[@]}" up -d --remove-orphans
 fi
 
 log "Healthcheck completed"

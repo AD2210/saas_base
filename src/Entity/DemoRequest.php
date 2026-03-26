@@ -76,6 +76,11 @@ class DemoRequest
         return $this->tenant;
     }
 
+    public function getChildAppKey(): string
+    {
+        return $this->tenant->getChildAppKey();
+    }
+
     public function getContact(): Contact
     {
         return $this->contact;

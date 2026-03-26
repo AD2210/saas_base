@@ -1,0 +1,64 @@
+services:
+  app:
+    environment:
+      SERVER_NAME: :80
+      APP_ENV: ${APP_ENV:-dev}
+      APP_DEBUG: ${APP_DEBUG:-1}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/saas_base_main?serverVersion=16&charset=utf8
+      CHILD_APP_VAULT_UPSTREAM: child-app:8000
+      CHILD_APP_VAULT_API_URL: http://child-app:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${APP_HTTP_PORT:-8088}:80"
+    volumes:
+      - ./:/app:cached
+      - symfony_var:/app/var
+
+  worker:
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      APP_DEBUG: ${APP_DEBUG:-1}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/saas_base_main?serverVersion=16&charset=utf8
+      CHILD_APP_VAULT_API_URL: http://child-app:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/app:cached
+      - symfony_var:/app/var
+
+  child-app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /app
+    environment:
+      APP_ENV: dev
+      APP_RUNTIME: Symfony\Component\Runtime\SymfonyRuntime
+      APP_SECRET: child-app-dev-secret
+      SYMFONY_TRUSTED_PROXIES: private_ranges
+      APP_2FA_ISSUER: Client Secrets Vault
+      VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      CHILD_APP_PROVISIONING_TOKEN: change-this-provisioning-token
+      DATABASE_URL: "sqlite:////app/var/data_dev.db"
+    volumes:
+      - ../client_secret_vault:/app:cached
+    command: [ "php", "-S", "0.0.0.0:8000", "-t", "public", "public/index.php" ]
+    ports:
+      - "${CHILD_APP_HTTP_PORT:-8090}:8000"
+    expose:
+      - "8000"
+
+  db:
+    ports:
+      - "${POSTGRES_PORT:-5442}:5432"
+
+  adminer:
+    image: adminer:4
+    depends_on:
+      - db
+    ports:
+      - "8089:8080"
+
+volumes:
+  symfony_var:
