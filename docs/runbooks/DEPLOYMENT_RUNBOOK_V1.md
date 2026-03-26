@@ -12,6 +12,7 @@ EN: Provide an executable, idempotent and auditable baseline for hardening, depl
 
 - `ops/lib/common.sh`: logs horodatés + garde-fous shell
 - `ops/server/hardening.sh`: SSH/fail2ban/UFW/apt/logrotate
+- `ops/server/install_docker.sh`: installation Docker + compose plugin
 - `ops/server/install_systemd_units.sh`: auto-restart stack + healthcheck + reboot hebdo
 - `ops/server/configure_monitoring_proxy.sh`: proxy Caddy + auth Netdata/Uptime Kuma
 - `ops/server/backup_db.sh`: dump chiffré AES-256 + rotation + rclone
@@ -53,18 +54,22 @@ EN: Provide an executable, idempotent and auditable baseline for hardening, depl
    sudo ops/server/hardening.sh ops/config/server.env
    ```
    Si le hardening SSH/fail2ban/UFW est déjà géré hors repo, cette étape peut être ignorée.
-2. Services systemd stack (auto restart + healthcheck + reboot hebdo):
+2. Installation Docker + compose:
+   ```bash
+   sudo ops/server/install_docker.sh ops/config/server.env
+   ```
+3. Services systemd stack (auto restart + healthcheck + reboot hebdo):
    ```bash
    sudo ops/server/install_systemd_units.sh ops/config/server.env
    ```
-3. Monitoring proxy (optionnel mais recommandé):
+4. Monitoring proxy (optionnel mais recommandé):
    ```bash
    sudo ops/server/configure_monitoring_proxy.sh ops/config/server.env
    ```
    Variables publiques de l'admin mère:
    - `NETDATA_PUBLIC_URL=https://monitor.dsn-dev.com/netdata`
    - `UPTIME_KUMA_PUBLIC_URL=https://monitor.dsn-dev.com/uptime`
-4. Backup automatique:
+5. Backup automatique:
    ```bash
    sudo ops/server/install_backup_timer.sh ops/config/backup.env
    ```
@@ -150,5 +155,6 @@ Pas obligatoire si:
 ## 9) Notes de sécurité
 
 1. `PermitRootLogin` peut rester `prohibit-password` en phase 1 (clé only).
-2. Avant prod finale: appliquer hardening final (port SSH custom, revue accès root, audit règles firewall).
-3. Ne jamais committer `ops/config/server.env` et `ops/config/backup.env` avec secrets réels.
+2. `SSH_PASSWORD_AUTHENTICATION=false` coupe les mots de passe seulement si `SSH_KEY_USER` a déjà une clé autorisée.
+3. Avant prod finale: appliquer hardening final (port SSH custom, revue accès root, audit règles firewall).
+4. Ne jamais committer `ops/config/server.env` et `ops/config/backup.env` avec secrets réels.

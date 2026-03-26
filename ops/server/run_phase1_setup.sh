@@ -21,6 +21,7 @@ main() {
 
     log_info "Starting phase 1 server setup pipeline."
     run_cmd "${SCRIPT_DIR}/hardening.sh" "${ENV_FILE}"
+    run_cmd "${SCRIPT_DIR}/install_docker.sh" "${ENV_FILE}"
     run_cmd "${SCRIPT_DIR}/install_systemd_units.sh" "${ENV_FILE}"
 
     if [[ "${ENABLE_MONITORING_PROXY}" == "true" ]]; then

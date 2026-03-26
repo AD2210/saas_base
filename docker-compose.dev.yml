@@ -4,6 +4,10 @@ services:
       SERVER_NAME: :80
       APP_ENV: ${APP_ENV:-dev}
       APP_DEBUG: ${APP_DEBUG:-1}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/saas_base_main?serverVersion=16&charset=utf8
+      CHILD_APP_VAULT_UPSTREAM: child-app:8000
+      CHILD_APP_VAULT_API_URL: http://child-app:8000
+      CHILD_APP_OPS_API_URL: http://child-app:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -16,6 +20,9 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_DEBUG: ${APP_DEBUG:-1}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/saas_base_main?serverVersion=16&charset=utf8
+      CHILD_APP_VAULT_API_URL: http://child-app:8000
+      CHILD_APP_OPS_API_URL: http://child-app:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -31,6 +38,7 @@ services:
       APP_ENV: dev
       APP_RUNTIME: Symfony\Component\Runtime\SymfonyRuntime
       APP_SECRET: child-app-dev-secret
+      SYMFONY_TRUSTED_PROXIES: private_ranges
       APP_2FA_ISSUER: Client Secrets Vault
       VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       CHILD_APP_PROVISIONING_TOKEN: change-this-provisioning-token

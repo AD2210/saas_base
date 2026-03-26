@@ -7,14 +7,14 @@ parameters:
                 api_url: '%env(string:CHILD_APP_VAULT_API_URL)%'
                 login_url: '%env(string:CHILD_APP_VAULT_LOGIN_URL)%'
                 api_token: '%env(string:CHILD_APP_VAULT_API_TOKEN)%'
-                landing_eyebrow: 'Encrypted vault for client operations'
-                landing_title: 'Centralize project secrets without scattering them across tools.'
-                landing_lead: 'Provision a secure vault, invite your team, and start storing SSH keys, credentials, and production secrets with a controlled onboarding path.'
-                landing_facts: ['Encrypted application vault', 'Password + TOTP onboarding', 'Shared access for internal team']
-                form_title: 'Request a vault demo'
-                form_subtitle: 'Receive your onboarding link, activate your workspace, and start storing secrets immediately.'
-                submit_label: 'Start my vault demo'
-                onboarding_eyebrow: 'Vault activation'
+                landing_eyebrow: 'Coffre fort de secrets clients'
+                landing_title: "Centraliser l'ensemble des secrets clients dans un même endroit."
+                landing_lead: "Configurez un coffre-fort sécurisé, invitez votre équipe et commencez à stocker les clés SSH, les identifiants et les secrets de production grâce à un processus d'intégration contrôlé."
+                landing_facts: ["Coffre-fort d'applications crypté", "Mot de passe + TOTP pour l'intégration", "Accès partagé pour l'équipe interne"]
+                form_title: 'Demandez votre démo de coffre-fort'
+                form_subtitle: "Recevez votre lien d'intégration, activez votre espace de travail et commencez à stocker les secrets immédiatement."
+                submit_label: 'Commencer ma démo de coffre-fort'
+                onboarding_eyebrow: 'Activation du coffre-fort'
                 onboarding_title: 'Create your vault password'
                 onboarding_lead: 'Choose a strong password to unlock your Client Secrets Vault workspace.'
                 theme:

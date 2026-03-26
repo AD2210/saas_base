@@ -100,6 +100,7 @@ Local Docker note:
 The repository now includes operational scripts for server setup and deployment:
 
 - Hardening: `ops/server/hardening.sh`
+- Docker baseline: `ops/server/install_docker.sh`
 - Systemd units (stack restart, healthcheck, weekly reboot): `ops/server/install_systemd_units.sh`
 - Monitoring reverse proxy + auth: `ops/server/configure_monitoring_proxy.sh`
 - Encrypted DB backups + rotation + rclone: `ops/server/backup_db.sh`

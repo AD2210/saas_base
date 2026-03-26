@@ -16,6 +16,8 @@ fi
 
 SSH_PORT="${SSH_PORT:-22}"
 ALLOW_ROOT_LOGIN="${ALLOW_ROOT_LOGIN:-true}"
+SSH_PASSWORD_AUTHENTICATION="${SSH_PASSWORD_AUTHENTICATION:-false}"
+SSH_KEY_USER="${SSH_KEY_USER:-${SUDO_USER:-ubuntu}}"
 FAIL2BAN_MAXRETRY="${FAIL2BAN_MAXRETRY:-3}"
 FAIL2BAN_BANTIME="${FAIL2BAN_BANTIME:-1h}"
 LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-30}"
@@ -30,17 +32,47 @@ configure_apt_baseline() {
         fail2ban \
         jq \
         logrotate \
+        openssh-server \
+        rsync \
         ufw \
         unattended-upgrades
 }
 
+ensure_ssh_key_before_disabling_password_auth() {
+    if [[ "${SSH_PASSWORD_AUTHENTICATION}" == "true" ]]; then
+        return 0
+    fi
+
+    local key_user="${SSH_KEY_USER}"
+    local key_home
+
+    key_home="$(getent passwd "${key_user}" | cut -d: -f6 || true)"
+    if [[ -z "${key_home}" ]]; then
+        log_error "Unable to resolve home directory for SSH_KEY_USER=${key_user}."
+        exit 1
+    fi
+
+    if [[ ! -s "${key_home}/.ssh/authorized_keys" ]]; then
+        log_error "Refusing to disable SSH password auth without a non-empty ${key_home}/.ssh/authorized_keys."
+        exit 1
+    fi
+}
+
 configure_ssh() {
-    local ssh_dropin="/etc/ssh/sshd_config.d/60-saas-hardening.conf"
+    local ssh_dropin="/etc/ssh/sshd_config.d/00-saas-hardening.conf"
+    local legacy_ssh_dropin="/etc/ssh/sshd_config.d/60-saas-hardening.conf"
     local root_login_mode="no"
+    local password_auth_mode="no"
 
     if [[ "${ALLOW_ROOT_LOGIN}" == "true" ]]; then
         root_login_mode="prohibit-password"
     fi
+
+    if [[ "${SSH_PASSWORD_AUTHENTICATION}" == "true" ]]; then
+        password_auth_mode="yes"
+    fi
+
+    ensure_ssh_key_before_disabling_password_auth
 
     local temp_file
     temp_file="$(mktemp)"
@@ -51,7 +83,7 @@ configure_ssh() {
 # WHY (EN): key-only auth + low auth retries reduce brute-force risk.
 Port ${SSH_PORT}
 PubkeyAuthentication yes
-PasswordAuthentication no
+PasswordAuthentication ${password_auth_mode}
 KbdInteractiveAuthentication no
 PermitRootLogin ${root_login_mode}
 MaxAuthTries 3
@@ -61,6 +93,11 @@ CFG
 
     write_file_if_changed "${ssh_dropin}" "${temp_file}" "0644"
     rm -f "${temp_file}"
+
+    if [[ -f "${legacy_ssh_dropin}" ]]; then
+        rm -f "${legacy_ssh_dropin}"
+        log_info "Removed legacy SSH drop-in: ${legacy_ssh_dropin}"
+    fi
 
     run_cmd sshd -t
 
@@ -163,6 +200,7 @@ CFG
 main() {
     require_root
     require_command apt-get
+    require_command getent
     require_command systemctl
 
     log_info "Starting server hardening baseline."

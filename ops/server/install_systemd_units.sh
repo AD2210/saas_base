@@ -93,11 +93,16 @@ log() {
 mkdir -p /var/log/saas
 
 if [[ ! -d "${APP_ROOT}" ]]; then
-    log "App root not found: ${APP_ROOT}"
-    exit 1
+    log "App root not found yet: ${APP_ROOT}. Skipping healthcheck."
+    exit 0
 fi
 
 cd "${APP_ROOT}"
+
+if [[ ! -f docker-compose.yml ]]; then
+    log "Compose file not found yet in ${APP_ROOT}. Skipping healthcheck."
+    exit 0
+fi
 
 compose_args=()
 if [[ -f "${COMPOSE_ENV_FILE}" ]]; then
@@ -106,8 +111,11 @@ fi
 
 running_services="$(docker compose "${compose_args[@]}" ps --status running --services || true)"
 missing_count=0
+required_services=()
 
-for required_service in ${STACK_REQUIRED_SERVICES}; do
+IFS=' ' read -r -a required_services <<< "${STACK_REQUIRED_SERVICES}"
+
+for required_service in "${required_services[@]}"; do
     if ! grep -qx "${required_service}" <<< "${running_services}"; then
         log "Missing service detected: ${required_service}"
         missing_count=$((missing_count + 1))
