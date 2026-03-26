@@ -86,6 +86,7 @@ Local Docker note:
   - `CHILD_APP_VAULT_API_TOKEN=...`
 - access the mother app through `http://127.0.0.1:8088`
 - do not use `symfony serve` for this stack: it bypasses the Docker DB settings and can fail against `127.0.0.1:5432`
+- production server env template: `.env.prod.example` (copy to `.env` on the server deploy path)
 
 ## Debug routes policy
 1) Debug endpoints use `/debug/*` prefix.
