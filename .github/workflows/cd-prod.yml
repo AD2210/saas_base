@@ -168,7 +168,7 @@ jobs:
       - name: Deploy on production server
         run: |
           PORT="${PROD_PORT:-22}"
-          DEPLOY_ENV_FILE="${PROD_DEPLOY_ENV_FILE:-/etc/saas/server.env}"
+          DEPLOY_ENV_FILE="${PROD_DEPLOY_ENV_FILE:-/srv/saas/app/.env}"
           ssh -p "${PORT}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
             "DEPLOY_ENV_FILE='${DEPLOY_ENV_FILE}' DEPLOY_PROFILE='prod' GITHUB_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
           set -Eeuo pipefail
