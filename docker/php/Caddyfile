@@ -17,5 +17,10 @@
 }
 
 {$CHILD_APP_VAULT_SERVER_NAME} {
-    reverse_proxy {$CHILD_APP_VAULT_UPSTREAM}
+    reverse_proxy {$CHILD_APP_VAULT_UPSTREAM} {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Port 443
+    }
 }
