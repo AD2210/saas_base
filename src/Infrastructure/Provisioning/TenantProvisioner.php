@@ -7,6 +7,7 @@ namespace App\Infrastructure\Provisioning;
 use App\Entity\Tenant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final class TenantProvisioner
 {
@@ -17,6 +18,7 @@ final class TenantProvisioner
         private readonly DbOrchestrator $db,
         private readonly SecretBox $crypto,
         private readonly LoggerInterface $logger,
+        private readonly TenantSlugGenerator $tenantSlugGenerator,
     ) {
     }
 
@@ -28,7 +30,8 @@ final class TenantProvisioner
         ?string $slug = null,
         string $childAppKey = 'vault',
     ): Tenant {
-        $baseSlug = $slug ?? $company;
+        $adminUserUuid = Uuid::v7();
+        $baseSlug = $slug ?? $this->tenantSlugGenerator->generate($firstName, $lastName, $adminUserUuid, $company);
         $tenantSlug = $this->generateUniqueSlug($baseSlug);
 
         $tenant = new Tenant(
@@ -37,6 +40,7 @@ final class TenantProvisioner
             adminEmail: $email,
             adminFirstName: $firstName,
             adminLastName: $lastName,
+            adminUserUuid: $adminUserUuid,
             childAppKey: $childAppKey,
         );
 

@@ -182,6 +182,20 @@ final class OnboardingController extends AbstractController
             return null;
         }
 
+        $tenantSlug = null;
+        $demoRequest = $context['demo_request'] ?? null;
+        if ($demoRequest instanceof DemoRequest) {
+            $tenantSlug = $demoRequest->getTenant()->getSlug();
+        }
+
+        if (is_string($tenantSlug) && '' !== $tenantSlug) {
+            $baseLoginUrl = str_replace(
+                ['{tenantSlug}', '{tenant_slug}'],
+                rawurlencode($tenantSlug),
+                $baseLoginUrl
+            );
+        }
+
         $email = $context['payload']['email'] ?? null;
         if (!is_string($email) || '' === $email) {
             return $baseLoginUrl;
