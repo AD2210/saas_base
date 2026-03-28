@@ -150,6 +150,9 @@ jobs:
               sleep 2
             done
 
+            echo "Purge and warm Symfony cache"
+            $COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml exec -T app sh -lc 'rm -rf var/cache/prod && php bin/console cache:warmup --env=prod'
+
             echo "Wait for app container to be healthy"
             for i in $(seq 1 60); do
               APP_CID="$($COMPOSE_CMD --env-file .env -f docker-compose.yml -f compose.prod.yaml ps -q app)"

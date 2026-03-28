@@ -13,6 +13,7 @@ use App\Entity\Tenant;
 use App\Infrastructure\Provisioning\DbOrchestrator;
 use App\Infrastructure\Provisioning\OnboardingTokenManager;
 use App\Infrastructure\Provisioning\SecretBox;
+use App\Infrastructure\Provisioning\TenantSlugGenerator;
 use App\Infrastructure\Provisioning\TenantProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -89,7 +90,7 @@ final class RegisterControllerTest extends TestCase
         self::assertSame('requested', $payload['status']);
         self::assertTrue(Uuid::isValid((string) $payload['demo_request_uuid']));
         self::assertTrue(Uuid::isValid((string) $payload['tenant_uuid']));
-        self::assertSame('acme-company', $payload['tenant_slug']);
+        self::assertSame('demo-tenant-slug', $payload['tenant_slug']);
         self::assertSame('vault', $payload['child_app_key']);
         self::assertSame('Client Secrets Vault', $payload['child_app_name']);
         self::assertNotSame(false, strtotime((string) $payload['demo_expires_at']));
@@ -192,7 +193,9 @@ final class RegisterControllerTest extends TestCase
         }
         $dbOrchestrator->expects($this->any())->method('rollbackDatabase');
 
-        $provisioner = new TenantProvisioner($em, $dbOrchestrator, new SecretBox(self::SECRET_BOX_KEY), new NullLogger());
+        $slugGenerator = $this->createMock(TenantSlugGenerator::class);
+        $slugGenerator->method('generate')->willReturn('demo-tenant-slug');
+        $provisioner = new TenantProvisioner($em, $dbOrchestrator, new SecretBox(self::SECRET_BOX_KEY), new NullLogger(), $slugGenerator);
         $tokenManager = new OnboardingTokenManager(new SecretBox(self::SECRET_BOX_KEY), new MockClock('2026-03-03 12:00:00'));
 
         return new DemoRequestManager(

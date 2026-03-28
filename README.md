@@ -75,6 +75,7 @@ php bin/console cache:warmup --env=dev
 6) Each demo request carries a `child_app_key`, so `/demo/{childAppKey}` can load a dedicated copy/theme and route onboarding to the matching child app.
 7) Contract details: `docs/CHILD_APP_CONTRACT_V1.md`
 8) Integration runbook (commands + validations): `docs/runbooks/CHILD_APP_INTEGRATION_RUNBOOK_V1.md`
+9) Child app per-tenant DB architecture reference: `docs/CHILD_APP_TENANT_DATABASE_ARCHITECTURE.md`
 
 Local Docker note:
 - for the local integration path in this repository, `docker compose` can run a `child-app` service from `../client_secret_vault`
@@ -82,7 +83,7 @@ Local Docker note:
 - expose the child app locally with `CHILD_APP_HTTP_PORT=8090`
 - local profile env vars are:
   - `CHILD_APP_VAULT_API_URL=http://child-app:8000`
-  - `CHILD_APP_VAULT_LOGIN_URL=http://127.0.0.1:8090/login`
+  - `CHILD_APP_VAULT_LOGIN_URL=http://127.0.0.1:8090/t/{tenantSlug}/login`
   - `CHILD_APP_VAULT_API_TOKEN=...`
 - access the mother app through `http://127.0.0.1:8088`
 - do not use `symfony serve` for this stack: it bypasses the Docker DB settings and can fail against `127.0.0.1:5432`

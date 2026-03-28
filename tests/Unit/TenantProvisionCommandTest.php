@@ -8,6 +8,7 @@ use App\Command\TenantProvisionCommand;
 use App\Entity\Tenant;
 use App\Infrastructure\Provisioning\DbOrchestrator;
 use App\Infrastructure\Provisioning\SecretBox;
+use App\Infrastructure\Provisioning\TenantSlugGenerator;
 use App\Infrastructure\Provisioning\TenantProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -83,6 +84,9 @@ final class TenantProvisionCommandTest extends TestCase
         }
         $dbOrchestrator->expects($this->any())->method('rollbackDatabase');
 
-        return new TenantProvisioner($em, $dbOrchestrator, new SecretBox(self::SECRET_BOX_KEY), new NullLogger());
+        $slugGenerator = $this->createMock(TenantSlugGenerator::class);
+        $slugGenerator->method('generate')->willReturn('cli-tenant-slug');
+
+        return new TenantProvisioner($em, $dbOrchestrator, new SecretBox(self::SECRET_BOX_KEY), new NullLogger(), $slugGenerator);
     }
 }

@@ -7,6 +7,7 @@ namespace App\Tests\Unit;
 use App\Entity\Tenant;
 use App\Infrastructure\Provisioning\DbOrchestrator;
 use App\Infrastructure\Provisioning\SecretBox;
+use App\Infrastructure\Provisioning\TenantSlugGenerator;
 use App\Infrastructure\Provisioning\TenantProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -17,7 +18,7 @@ final class TenantProvisionerTest extends TestCase
     public function testCreateTenantAccountPersistsTenantWithNormalizedSlugAndEmail(): void
     {
         $tenantRepo = $this->createMock(\Doctrine\ORM\EntityRepository::class);
-        $tenantRepo->expects($this->once())->method('findOneBy')->with(['slug' => 'acme-company'])->willReturn(null);
+        $tenantRepo->expects($this->once())->method('findOneBy')->with(['slug' => 'ada-lovelace-tenant'])->willReturn(null);
 
         $db = $this->createMock(DbOrchestrator::class);
         $db->expects($this->never())->method('createDatabase');
@@ -31,7 +32,7 @@ final class TenantProvisionerTest extends TestCase
         $provisioner = $this->buildProvisioner($em, $db);
         $tenant = $provisioner->createTenantAccount(' OWNER@EXAMPLE.COM ', ' Acme Company ', ' Ada ', ' Lovelace ', null, 'vault');
 
-        self::assertSame('acme-company', $tenant->getSlug());
+        self::assertSame('ada-lovelace-tenant', $tenant->getSlug());
         self::assertSame('vault', $tenant->getChildAppKey());
         self::assertSame('owner@example.com', $tenant->getAdminEmail());
         self::assertSame('Ada', $tenant->getAdminFirstName());
@@ -41,12 +42,12 @@ final class TenantProvisionerTest extends TestCase
 
     public function testCreateTenantAccountAppendsSuffixWhenSlugAlreadyExists(): void
     {
-        $existingTenant = new Tenant('acme-company', 'Acme', 'existing@example.com', 'Existing', 'Admin');
+        $existingTenant = new Tenant('ada-lovelace-tenant', 'Acme', 'existing@example.com', 'Existing', 'Admin');
         $tenantRepo = $this->createMock(\Doctrine\ORM\EntityRepository::class);
         $tenantRepo->expects($this->exactly(2))
             ->method('findOneBy')
             ->willReturnCallback(static function (array $criteria) use ($existingTenant): ?Tenant {
-                if (($criteria['slug'] ?? null) === 'acme-company') {
+                if (($criteria['slug'] ?? null) === 'ada-lovelace-tenant') {
                     return $existingTenant;
                 }
 
@@ -65,7 +66,7 @@ final class TenantProvisionerTest extends TestCase
         $provisioner = $this->buildProvisioner($em, $db);
         $tenant = $provisioner->createTenantAccount('owner@example.com', 'Acme Company');
 
-        self::assertSame('acme-company-2', $tenant->getSlug());
+        self::assertSame('ada-lovelace-tenant-2', $tenant->getSlug());
     }
 
     public function testProvisionDatabaseSucceedsOnFirstAttempt(): void
@@ -184,8 +185,10 @@ final class TenantProvisionerTest extends TestCase
     {
         $crypto = new SecretBox(str_repeat('a', 64));
         $logger = $this->createMock(LoggerInterface::class);
+        $slugGenerator = $this->createMock(TenantSlugGenerator::class);
+        $slugGenerator->method('generate')->willReturn('ada-lovelace-tenant');
 
-        return new TenantProvisioner($em, $db, $crypto, $logger);
+        return new TenantProvisioner($em, $db, $crypto, $logger, $slugGenerator);
     }
 
     private function createTenant(): Tenant
