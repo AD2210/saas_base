@@ -83,7 +83,7 @@ Local Docker note:
 - expose the child app locally with `CHILD_APP_HTTP_PORT=8090`
 - local profile env vars are:
   - `CHILD_APP_VAULT_API_URL=http://child-app:8000`
-  - `CHILD_APP_VAULT_LOGIN_URL=http://127.0.0.1:8090/t/{tenantSlug}/login`
+  - `CHILD_APP_VAULT_LOGIN_URL=http://{tenantSlug}.localhost:8090/login`
   - `CHILD_APP_VAULT_API_TOKEN=...`
 - access the mother app through `http://127.0.0.1:8088`
 - do not use `symfony serve` for this stack: it bypasses the Docker DB settings and can fail against `127.0.0.1:5432`

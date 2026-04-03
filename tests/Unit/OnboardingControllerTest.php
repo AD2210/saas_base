@@ -149,7 +149,8 @@ final class OnboardingControllerTest extends TestCase
         [$controller, $tokenManager] = $this->buildController(
             $this->entityManagerReturningDemoRequest($demoRequest, 1),
             $this->childClientSuccess(),
-            $clock
+            $clock,
+            $this->childAppCatalog('https://child-app.local', 'https://{tenantSlug}.vault.example.com/login', 'token')
         );
         $token = $tokenManager->generateToken($tenant, 3600);
         $demoRequest->setOnboardingTokenHash(hash('sha256', $token));
@@ -161,7 +162,7 @@ final class OnboardingControllerTest extends TestCase
         ]));
 
         self::assertInstanceOf(RedirectResponse::class, $response);
-        self::assertSame('https://vault.example/login?email=admin%40example.com', $response->headers->get('Location'));
+        self::assertSame('https://acme.vault.example.com/login?email=admin%40example.com', $response->headers->get('Location'));
         self::assertSame(DemoRequest::STATUS_ACCEPTED, $demoRequest->getStatus());
         self::assertNull($demoRequest->getOnboardingTokenHash());
         self::assertNotNull($demoRequest->getAcceptedAt());
