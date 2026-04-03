@@ -34,7 +34,7 @@ EN: Provide an executable, idempotent and auditable baseline for hardening, depl
    - `SERVER_NAME=demo.dsn-dev.com`
    - `BASE_URI=https://demo.dsn-dev.com`
    - `CHILD_APP_VAULT_API_URL=https://secret-vault.dsn-dev.com`
-   - `CHILD_APP_VAULT_LOGIN_URL=https://secret-vault.dsn-dev.com/login`
+   - `CHILD_APP_VAULT_LOGIN_URL=https://{tenantSlug}.secret-vault.dsn-dev.com/login`
    - `CHILD_APP_VAULT_API_TOKEN=<même token que CHILD_APP_PROVISIONING_TOKEN côté vault>`
 3. Convention de répertoire:
    - app mère: `/srv/saas/app`

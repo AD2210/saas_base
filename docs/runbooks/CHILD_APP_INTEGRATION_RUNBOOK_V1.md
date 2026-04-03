@@ -35,7 +35,7 @@ Variables à définir:
 ```dotenv
 DEFAULT_CHILD_APP_KEY=vault
 CHILD_APP_VAULT_API_URL=https://child-app.example
-CHILD_APP_VAULT_LOGIN_URL=https://child-app.example/login
+CHILD_APP_VAULT_LOGIN_URL=https://{tenantSlug}.child-app.example/login
 CHILD_APP_VAULT_API_TOKEN=replace-with-strong-token
 ```
 

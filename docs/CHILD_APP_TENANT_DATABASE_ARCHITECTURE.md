@@ -14,7 +14,7 @@ The baseline model is:
 Example:
 
 - mother app onboarding: `demo.dsn-dev.com`
-- child app URL: `secret-vault.dsn-dev.com/t/{tenantSlug}/login`
+- child app URL: `{tenantSlug}.secret-vault.dsn-dev.com/login`
 
 ## Registry Database: Optional Baseline, Required for Indirection
 
@@ -69,7 +69,7 @@ The current provisioning contract already transports `tenant_slug`.
 
 The child app must:
 
-1. resolve the tenant from `/t/{tenantSlug}/...`
+1. resolve the tenant from the tenant subdomain for authentication entrypoints
 2. determine the tenant DB path or DSN
 3. create the tenant business database if missing
 4. migrate that tenant database
@@ -85,13 +85,13 @@ The child app needs:
 - a tenant-aware user provider
 - a tenant-aware Doctrine connection or entity manager provider
 
-This is required because login itself already depends on the tenant database.
+This is required because login must identify the tenant before runtime DB access, while still allowing authentication to start from the bootstrap database.
 
 ## Routing Policy
 
 Business routes must live under a tenant prefix:
 
-- `/t/{tenantSlug}/login`
+- `/login` on the tenant subdomain
 - `/t/{tenantSlug}/projects`
 - `/t/{tenantSlug}/projects/{id}`
 
@@ -106,7 +106,7 @@ When creating a new child app:
 
 1. add a registry database
 2. introduce a public tenant slug contract
-3. place business routes under `/t/{tenantSlug}`
+3. expose authentication entrypoints on the tenant subdomain
 4. implement a tenant-aware user provider
 5. move business entities to the tenant database
 6. keep only registry entities in the global database
@@ -116,7 +116,7 @@ When creating a new child app:
 At the moment:
 
 - slug generation is standardized on the mother app side
-- the `client_secret_vault` child app already uses `/t/{tenantSlug}` routes
+- the `client_secret_vault` child app uses subdomain auth entrypoints and keeps `/t/{tenantSlug}` only for its current business routes
 - that child app provisions tenant-specific SQLite databases under `var/tenants/{tenantSlug}.sqlite`
 - the registry DB remains an optional next step for future child apps that need path indirection
 
